@@ -89,6 +89,10 @@ canvas {
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.shop-item[hidden] {
+  display: none;
+}
+
 .shop-item {
   display: flex;
   align-items: center;
