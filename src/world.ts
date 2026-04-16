@@ -7,6 +7,9 @@ const GRID_SIZE = 100;
 const BALL_RADIUS = 10;
 const BALL_RESTITUTION = 0.9;
 const BALL_COUNT = 4;
+const WALL_COLOR = "#4a4a6a";
+const FLASH_COLOR = "#ffffff";
+const FLASH_DURATION = 150;
 
 function createObstacles(width: number, height: number): Matter.Body[] {
   const bodies: Matter.Body[] = [];
@@ -109,12 +112,18 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         : bodyB.label?.startsWith("ball")
           ? bodyB
           : undefined;
-      const isWall = bodyA.isStatic || bodyB.isStatic;
+      const wall = bodyA.isStatic ? bodyA : bodyB.isStatic ? bodyB : undefined;
 
-      if (ball && isWall) {
+      if (ball && wall) {
         const duration = ball.label.split("ball_")[1];
         const velocity = ball.speed > 10 ? 1 : ball.speed / 10;
         play(duration, velocity);
+
+        // Flash the obstacle
+        wall.render.fillStyle = FLASH_COLOR;
+        setTimeout(() => {
+          wall.render.fillStyle = WALL_COLOR;
+        }, FLASH_DURATION);
       }
     }
   });
