@@ -8,6 +8,7 @@ export interface SaveData {
   collisionMultiplier: number;
   criticalChance: number;
   hasBumpers: boolean;
+  hasZigzag: boolean;
   upgrades: {
     maxBalls: number;
     restitution: number;
@@ -30,6 +31,7 @@ const defaults: SaveData = {
   collisionMultiplier: 1,
   criticalChance: 0,
   hasBumpers: false,
+  hasZigzag: false,
   upgrades: {
     maxBalls: 0,
     restitution: 0,

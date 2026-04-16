@@ -10,14 +10,15 @@ const WALL_COLOR = "#4a4a6a";
 const FLASH_COLOR = "#ffffff";
 const FLASH_DURATION = 150;
 
-function createObstacles(width: number, height: number): Matter.Body[] {
+function createObstacles(width: number, height: number, zigzag: boolean): Matter.Body[] {
   const bodies: Matter.Body[] = [];
   const cols = Math.ceil(width / GRID_SIZE);
   const rows = Math.ceil(height / GRID_SIZE);
 
   for (let gy = 0; gy < rows; gy++) {
     for (let gx = 0; gx < cols; gx++) {
-      const x = gx * GRID_SIZE + GRID_SIZE / 2;
+      const offset = zigzag && gy % 2 === 1 ? GRID_SIZE / 2 : 0;
+      const x = gx * GRID_SIZE + GRID_SIZE / 2 + offset;
       const y = gy * GRID_SIZE + GRID_SIZE / 2;
       const angle = -Math.PI / 3 + (Math.random() * Math.PI) / 3;
       const opts: Matter.IChamferableBodyDefinition = {
@@ -104,7 +105,7 @@ function createBumpers(width: number, height: number): Matter.Body[] {
   ];
 }
 
-function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBumpers: () => void): void {
+function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBumpers: () => void, onZigzag: () => void): void {
   const btn = document.createElement("button");
   btn.id = "hamburger-btn";
   btn.innerHTML = "&#9776;";
@@ -303,6 +304,32 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBump
   bumperRow.appendChild(bumperBtn);
   panel.appendChild(bumperRow);
 
+  // Zigzag upgrade (one-time purchase)
+  const zigzagRow = document.createElement("div");
+  zigzagRow.className = "shop-item";
+
+  const zigzagLabel = document.createElement("span");
+  const zigzagCost = 800;
+
+  const zigzagBtn = document.createElement("button");
+  zigzagBtn.className = "shop-buy-btn";
+  zigzagBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= zigzagCost && !s.hasZigzag) {
+      updateState({
+        collisionCount: s.collisionCount - zigzagCost,
+        hasZigzag: true,
+      });
+      counterEl.textContent = String(getState().collisionCount);
+      onZigzag();
+    }
+  });
+
+  zigzagRow.appendChild(zigzagLabel);
+  zigzagRow.appendChild(zigzagBtn);
+  panel.appendChild(zigzagRow);
+
   // Update labels on state change
   const refreshLabels = () => {
     const s = getState();
@@ -334,6 +361,14 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBump
     } else {
       bumperLabel.textContent = "Bumpers: OFF";
       bumperBtn.textContent = `BUY (${bumperCost})`;
+    }
+    if (s.hasZigzag) {
+      zigzagLabel.textContent = "Zigzag: ON";
+      zigzagBtn.textContent = "PURCHASED";
+      zigzagBtn.disabled = true;
+    } else {
+      zigzagLabel.textContent = "Zigzag: OFF";
+      zigzagBtn.textContent = `BUY (${zigzagCost})`;
     }
   };
   onChange(refreshLabels);
@@ -385,7 +420,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   });
 
   // Static obstacles
-  const obstacles = createObstacles(width, height);
+  let obstacles = createObstacles(width, height, getState().hasZigzag);
   Composite.add(engine.world, obstacles);
 
   // Track active balls
@@ -475,7 +510,14 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     if (balls.size < getState().maxBalls) {
       addBall(Math.random() * width);
     }
-  }, addBumpers);
+  }, addBumpers, () => {
+    // Replace obstacles with zigzag layout
+    for (const ob of obstacles) {
+      Composite.remove(engine.world, ob);
+    }
+    obstacles = createObstacles(width, height, true);
+    Composite.add(engine.world, obstacles);
+  });
 
   // Apply saved volume on init
   const vol = getState().volume;
