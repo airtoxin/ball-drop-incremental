@@ -1,10 +1,45 @@
 import * as Tone from "tone";
 
 const chords = [
-  ["C", "E", "G"],
-  ["A", "C", "E"],
-  ["D", "F", "A"],
-  ["G", "B", "D"],
+  // Section A: 明るく穏やかな導入
+  ["C", "E", "G"],       // C
+  ["G", "B", "D"],       // G
+  ["A", "C", "E"],       // Am
+  ["E", "G", "B"],       // Em
+  ["F", "A", "C"],       // F
+  ["C", "E", "G"],       // C
+  ["D", "F", "A"],       // Dm
+  ["G", "B", "D"],       // G
+
+  // Section B: 少し切ない展開
+  ["A", "C", "E"],       // Am
+  ["E", "G", "B"],       // Em
+  ["F", "A", "C"],       // F
+  ["G", "B", "D"],       // G
+  ["C", "E", "G"],       // C
+  ["A", "C", "E"],       // Am
+  ["D", "F", "A"],       // Dm
+  ["G", "B", "D"],       // G
+
+  // Section C: 浮遊感のあるブリッジ
+  ["F", "A", "C"],       // F
+  ["F", "Ab", "C"],      // Fm (借用和音)
+  ["C", "E", "G"],       // C
+  ["E", "G#", "B"],      // E (セカンダリードミナント)
+  ["A", "C", "E"],       // Am
+  ["D", "F#", "A"],      // D (セカンダリードミナント)
+  ["G", "B", "D"],       // G
+  ["G", "B", "D"],       // G (サスペンス)
+
+  // Section D: 壮大なクライマックスと解決
+  ["F", "A", "C"],       // F
+  ["G", "B", "D"],       // G
+  ["E", "G#", "B"],      // E
+  ["A", "C", "E"],       // Am
+  ["F", "A", "C"],       // F
+  ["D", "F", "A"],       // Dm
+  ["G", "B", "D"],       // G
+  ["C", "E", "G"],       // C (解決)
 ];
 
 let chordIndex = 0;
@@ -60,7 +95,7 @@ export async function initAudio(): Promise<void> {
 
   new Tone.Loop(() => {
     chordIndex = (chordIndex + 1) % chords.length;
-  }, "1m").start(0);
+  }, "2m").start(0);
 
   new Tone.Loop((time) => {
     kick.triggerAttackRelease("C0", "32n", time);
