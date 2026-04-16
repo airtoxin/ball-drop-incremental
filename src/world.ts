@@ -145,9 +145,10 @@ function createBumpers(width: number, height: number): Matter.Body[] {
     render: { fillStyle: "#7a7aff" },
     label: "bumper",
   };
+  const VISIBLE_EDGE = 5;
   return [
-    Bodies.rectangle(-BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
-    Bodies.rectangle(width + BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
+    Bodies.rectangle(VISIBLE_EDGE - BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
+    Bodies.rectangle(width - VISIBLE_EDGE + BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
   ];
 }
 
