@@ -16,6 +16,7 @@ const FLASH_DURATION = 150;
 
 function createObstacles(width: number, height: number, zigzag: boolean): Matter.Body[] {
   const bodies: Matter.Body[] = [];
+  const MARGIN = GRID_SIZE; // keep edges clear so balls don't jam against bumpers
   const cols = Math.ceil(width / GRID_SIZE);
   const rows = Math.ceil(height / GRID_SIZE);
 
@@ -24,6 +25,7 @@ function createObstacles(width: number, height: number, zigzag: boolean): Matter
       const offset = zigzag && gy % 2 === 1 ? GRID_SIZE / 2 : 0;
       const x = gx * GRID_SIZE + GRID_SIZE / 2 + offset;
       const y = gy * GRID_SIZE + GRID_SIZE / 2;
+      if (x - GRID_SIZE / 4 < MARGIN || x + GRID_SIZE / 4 > width - MARGIN) continue;
       const angle = -Math.PI / 3 + (Math.random() * Math.PI) / 3;
       const opts: Matter.IChamferableBodyDefinition = {
         isStatic: true,
