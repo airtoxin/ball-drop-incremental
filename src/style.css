@@ -15,3 +15,25 @@ body {
 canvas {
   display: block;
 }
+
+.float-text {
+  position: fixed;
+  pointer-events: none;
+  color: #fff;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+  animation: float-up 0.8s ease-out forwards;
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+}

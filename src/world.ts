@@ -53,6 +53,16 @@ function createBall(width: number): Matter.Body {
   });
 }
 
+function showFloatText(x: number, y: number): void {
+  const el = document.createElement("div");
+  el.className = "float-text";
+  el.textContent = "+1";
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  document.body.appendChild(el);
+  el.addEventListener("animationend", () => el.remove());
+}
+
 export function createWorld(canvas: HTMLCanvasElement): void {
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -124,6 +134,9 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         setTimeout(() => {
           wall.render.fillStyle = WALL_COLOR;
         }, FLASH_DURATION);
+
+        // Show +1 floating text
+        showFloatText(ball.position.x, ball.position.y);
       }
     }
   });
