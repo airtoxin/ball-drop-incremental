@@ -1,0 +1,78 @@
+const SAVE_KEY = "ball-drop-save";
+
+export interface SaveData {
+  collisionCount: number;
+  maxBalls: number;
+  ballRestitution: number;
+  upgrades: {
+    maxBalls: number;
+    restitution: number;
+  };
+  volume: {
+    kick: number;
+    hihat: number;
+    synth: number;
+  };
+}
+
+const defaults: SaveData = {
+  collisionCount: 0,
+  maxBalls: 1,
+  ballRestitution: 0.9,
+  upgrades: {
+    maxBalls: 0,
+    restitution: 0,
+  },
+  volume: {
+    kick: -4,
+    hihat: -10,
+    synth: -8,
+  },
+};
+
+let current: SaveData = structuredClone(defaults);
+
+const listeners = new Set<() => void>();
+
+export function getState(): Readonly<SaveData> {
+  return current;
+}
+
+export function updateState(patch: Partial<SaveData>): void {
+  Object.assign(current, patch);
+  for (const fn of listeners) fn();
+}
+
+export function updateUpgrades(patch: Partial<SaveData["upgrades"]>): void {
+  Object.assign(current.upgrades, patch);
+  for (const fn of listeners) fn();
+}
+
+export function updateVolume(patch: Partial<SaveData["volume"]>): void {
+  Object.assign(current.volume, patch);
+  for (const fn of listeners) fn();
+}
+
+export function onChange(fn: () => void): void {
+  listeners.add(fn);
+}
+
+export function save(): void {
+  localStorage.setItem(SAVE_KEY, JSON.stringify(current));
+}
+
+export function load(): void {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw) as Partial<SaveData>;
+    current = {
+      ...structuredClone(defaults),
+      ...parsed,
+      upgrades: { ...structuredClone(defaults.upgrades), ...parsed.upgrades },
+      volume: { ...structuredClone(defaults.volume), ...parsed.volume },
+    };
+  } catch {
+    // corrupted save — start fresh
+  }
+}

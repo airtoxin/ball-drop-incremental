@@ -1,11 +1,11 @@
 import Matter from "matter-js";
 import { play, getDuration, setKickVolume, setHihatVolume, setSynthVolume } from "./synth";
+import { getState, updateState, updateUpgrades, updateVolume, onChange } from "./state";
 
 const { Engine, Render, Runner, Body, Bodies, Composite, Events } = Matter;
 
 const GRID_SIZE = 100;
 const BALL_RADIUS = 10;
-const BALL_RESTITUTION = 0.9;
 const WALL_COLOR = "#4a4a6a";
 const FLASH_COLOR = "#ffffff";
 const FLASH_DURATION = 150;
@@ -42,7 +42,7 @@ function createObstacles(width: number, height: number): Matter.Body[] {
 function createBall(x: number): Matter.Body {
   return Bodies.circle(x, 0, BALL_RADIUS, {
     label: `ball_${getDuration()}`,
-    restitution: BALL_RESTITUTION,
+    restitution: getState().ballRestitution,
     friction: 0,
     density: 1000,
     render: {
@@ -56,10 +56,11 @@ function createSettingsMenu(): HTMLElement {
   menu.id = "settings-menu";
   menu.hidden = true;
 
-  const sliders: { label: string; value: number; onChange: (db: number) => void }[] = [
-    { label: "Kick", value: -4, onChange: setKickVolume },
-    { label: "Hi-Hat", value: -10, onChange: setHihatVolume },
-    { label: "Synth", value: -8, onChange: setSynthVolume },
+  const state = getState();
+  const sliders: { label: string; key: keyof typeof state.volume; setFn: (db: number) => void }[] = [
+    { label: "Kick", key: "kick", setFn: setKickVolume },
+    { label: "Hi-Hat", key: "hihat", setFn: setHihatVolume },
+    { label: "Synth", key: "synth", setFn: setSynthVolume },
   ];
 
   for (const s of sliders) {
@@ -73,10 +74,11 @@ function createSettingsMenu(): HTMLElement {
     input.type = "range";
     input.min = "-30";
     input.max = "0";
-    input.value = String(s.value);
+    input.value = String(getState().volume[s.key]);
     input.addEventListener("input", () => {
       const val = Number(input.value);
-      s.onChange(val <= -30 ? -Infinity : val);
+      s.setFn(val <= -30 ? -Infinity : val);
+      updateVolume({ [s.key]: val });
     });
 
     row.appendChild(label);
@@ -88,14 +90,7 @@ function createSettingsMenu(): HTMLElement {
   return menu;
 }
 
-interface GameState {
-  collisionCount: number;
-  maxBalls: number;
-  setCollisionCount: (n: number) => void;
-  setMaxBalls: (n: number) => void;
-}
-
-function createShopMenu(state: GameState): void {
+function createShopMenu(counterEl: HTMLElement): void {
   const btn = document.createElement("button");
   btn.id = "hamburger-btn";
   btn.innerHTML = "&#9776;";
@@ -110,31 +105,36 @@ function createShopMenu(state: GameState): void {
   panel.appendChild(title);
 
   // Max balls upgrade
-  const row = document.createElement("div");
-  row.className = "shop-item";
+  const maxBallsRow = document.createElement("div");
+  maxBallsRow.className = "shop-item";
 
-  const label = document.createElement("span");
-  const cost = 100;
-  const updateLabel = () => {
-    label.textContent = `Max Balls: ${state.maxBalls}`;
-  };
-  updateLabel();
+  const maxBallsLabel = document.createElement("span");
+  const maxBallsCost = 100;
 
-  const buyBtn = document.createElement("button");
-  buyBtn.className = "shop-buy-btn";
-  buyBtn.textContent = `+1 (${cost})`;
-  buyBtn.addEventListener("click", (e) => {
+  const maxBallsBtn = document.createElement("button");
+  maxBallsBtn.className = "shop-buy-btn";
+  maxBallsBtn.textContent = `+1 (${maxBallsCost})`;
+  maxBallsBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (state.collisionCount >= cost) {
-      state.setCollisionCount(state.collisionCount - cost);
-      state.setMaxBalls(state.maxBalls + 1);
-      updateLabel();
+    const s = getState();
+    if (s.collisionCount >= maxBallsCost) {
+      updateState({ collisionCount: s.collisionCount - maxBallsCost, maxBalls: s.maxBalls + 1 });
+      updateUpgrades({ maxBalls: s.upgrades.maxBalls + 1 });
+      counterEl.textContent = String(getState().collisionCount);
     }
   });
 
-  row.appendChild(label);
-  row.appendChild(buyBtn);
-  panel.appendChild(row);
+  maxBallsRow.appendChild(maxBallsLabel);
+  maxBallsRow.appendChild(maxBallsBtn);
+  panel.appendChild(maxBallsRow);
+
+  // Update labels on state change
+  const refreshLabels = () => {
+    const s = getState();
+    maxBallsLabel.textContent = `Max Balls: ${s.maxBalls}`;
+  };
+  onChange(refreshLabels);
+  refreshLabels();
 
   document.body.appendChild(panel);
 
@@ -163,12 +163,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   canvas.width = width;
   canvas.height = height;
 
-  // Game state
-  let collisionCount = 0;
-  let maxBalls = 1;
+  // Counter display
   const counterEl = document.createElement("div");
   counterEl.id = "counter";
-  counterEl.textContent = "0";
+  counterEl.textContent = String(getState().collisionCount);
   document.body.appendChild(counterEl);
 
   const engine = Engine.create();
@@ -237,15 +235,15 @@ export function createWorld(canvas: HTMLCanvasElement): void {
 
         // Show +1 floating text and increment counter
         showFloatText(ball.position.x, ball.position.y);
-        collisionCount++;
-        counterEl.textContent = String(collisionCount);
+        updateState({ collisionCount: getState().collisionCount + 1 });
+        counterEl.textContent = String(getState().collisionCount);
       }
     }
   });
 
   // Click to drop ball (respects max)
   canvas.addEventListener("click", (e) => {
-    if (balls.size < maxBalls) {
+    if (balls.size < getState().maxBalls) {
       addBall(e.clientX);
     }
   });
@@ -256,17 +254,13 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   Runner.run(runner, engine);
 
   // Shop menu
-  createShopMenu({
-    get collisionCount() { return collisionCount; },
-    get maxBalls() { return maxBalls; },
-    setCollisionCount(n: number) {
-      collisionCount = n;
-      counterEl.textContent = String(collisionCount);
-    },
-    setMaxBalls(n: number) {
-      maxBalls = n;
-    },
-  });
+  createShopMenu(counterEl);
+
+  // Apply saved volume on init
+  const vol = getState().volume;
+  setKickVolume(vol.kick <= -30 ? -Infinity : vol.kick);
+  setHihatVolume(vol.hihat <= -30 ? -Infinity : vol.hihat);
+  setSynthVolume(vol.synth <= -30 ? -Infinity : vol.synth);
 
   // Settings menu
   const settingsMenu = createSettingsMenu();
