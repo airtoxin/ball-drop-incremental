@@ -125,50 +125,6 @@ function createSettingsMenu(container: HTMLElement): HTMLElement {
   langRow.appendChild(langSelect);
   menu.appendChild(langRow);
 
-  // Mute toggle
-  const muteRow = document.createElement("div");
-  muteRow.className = "settings-row";
-
-  const muteLabel = document.createElement("label");
-  muteLabel.textContent = "";
-
-  const muteBtn = document.createElement("button");
-  muteBtn.className = "settings-btn";
-  let muted = false;
-  let savedVolumes: { kick: number; hihat: number; synth: number } | null = null;
-
-  function updateMuteBtn(): void {
-    muteBtn.textContent = muted ? t("unmute") : t("mute");
-  }
-  updateMuteBtn();
-
-  muteBtn.addEventListener("click", () => {
-    if (muted) {
-      // Restore saved volumes
-      if (savedVolumes) {
-        for (const s of sliders) {
-          const val = savedVolumes[s.key];
-          s.setFn(val <= -30 ? -Infinity : val);
-        }
-        updateVolume(savedVolumes);
-      }
-      savedVolumes = null;
-    } else {
-      // Save current volumes and mute all
-      savedVolumes = { ...getState().volume };
-      for (const s of sliders) {
-        s.setFn(-Infinity);
-      }
-      updateVolume({ kick: -30, hihat: -30, synth: -30 });
-    }
-    muted = !muted;
-    updateMuteBtn();
-  });
-
-  muteRow.appendChild(muteLabel);
-  muteRow.appendChild(muteBtn);
-  menu.appendChild(muteRow);
-
   // Reset button
   const resetRow = document.createElement("div");
   resetRow.className = "settings-row";
@@ -197,7 +153,6 @@ function createSettingsMenu(container: HTMLElement): HTMLElement {
       sliderLabels[i].textContent = t(sliders[i].labelKey);
     }
     langLabel.textContent = t("language");
-    updateMuteBtn();
     resetBtn.textContent = t("reset");
   });
 
@@ -686,6 +641,37 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   setKickVolume(vol.kick <= -30 ? -Infinity : vol.kick);
   setHihatVolume(vol.hihat <= -30 ? -Infinity : vol.hihat);
   setSynthVolume(vol.synth <= -30 ? -Infinity : vol.synth);
+
+  // Mute toggle button (top-right, next to hamburger)
+  const muteBtn = document.createElement("button");
+  muteBtn.id = "mute-btn";
+  muteBtn.textContent = "\u{1F50A}";
+  let muted = false;
+  let savedVolumes: { kick: number; hihat: number; synth: number } | null = null;
+
+  muteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (muted) {
+      if (savedVolumes) {
+        setKickVolume(savedVolumes.kick <= -30 ? -Infinity : savedVolumes.kick);
+        setHihatVolume(savedVolumes.hihat <= -30 ? -Infinity : savedVolumes.hihat);
+        setSynthVolume(savedVolumes.synth <= -30 ? -Infinity : savedVolumes.synth);
+        updateVolume(savedVolumes);
+      }
+      savedVolumes = null;
+      muteBtn.textContent = "\u{1F50A}";
+    } else {
+      savedVolumes = { ...getState().volume };
+      setKickVolume(-Infinity);
+      setHihatVolume(-Infinity);
+      setSynthVolume(-Infinity);
+      updateVolume({ kick: -30, hihat: -30, synth: -30 });
+      muteBtn.textContent = "\u{1F507}";
+    }
+    muted = !muted;
+  });
+
+  container.appendChild(muteBtn);
 
   // Settings menu
   const settingsMenu = createSettingsMenu(container);

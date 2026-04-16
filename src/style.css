@@ -52,6 +52,18 @@ canvas {
   line-height: 1;
 }
 
+#mute-btn {
+  position: absolute;
+  top: 16px;
+  right: 56px;
+  z-index: 30;
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  line-height: 1;
+}
+
 #shop-panel {
   position: absolute;
   top: 0;
