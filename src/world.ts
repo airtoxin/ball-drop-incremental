@@ -6,6 +6,8 @@ import type { Locale } from "./i18n";
 
 const { Engine, Render, Runner, Body, Bodies, Composite, Events } = Matter;
 
+const GAME_WIDTH = 1920;
+const GAME_HEIGHT = 1080;
 const GRID_SIZE = 100;
 const BALL_RADIUS = 10;
 const WALL_COLOR = "#4a4a6a";
@@ -54,7 +56,7 @@ function createBall(x: number): Matter.Body {
   });
 }
 
-function createSettingsMenu(): HTMLElement {
+function createSettingsMenu(container: HTMLElement): HTMLElement {
   const menu = document.createElement("div");
   menu.id = "settings-menu";
   menu.hidden = true;
@@ -127,7 +129,7 @@ function createSettingsMenu(): HTMLElement {
     langLabel.textContent = t("language");
   });
 
-  document.body.appendChild(menu);
+  container.appendChild(menu);
   return menu;
 }
 
@@ -145,11 +147,11 @@ function createBumpers(width: number, height: number): Matter.Body[] {
   ];
 }
 
-function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBumpers: () => void, onZigzag: () => void): void {
+function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBall: () => void, onAddBumpers: () => void, onZigzag: () => void): void {
   const btn = document.createElement("button");
   btn.id = "hamburger-btn";
   btn.innerHTML = "&#9776;";
-  document.body.appendChild(btn);
+  container.appendChild(btn);
 
   const panel = document.createElement("div");
   panel.id = "shop-panel";
@@ -419,7 +421,7 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBump
   onLocaleChange(refreshLabels);
   refreshLabels();
 
-  document.body.appendChild(panel);
+  container.appendChild(panel);
 
   let open = false;
   btn.addEventListener("click", (e) => {
@@ -429,28 +431,46 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBump
   });
 }
 
-function showFloatText(x: number, y: number, amount: number, critical: boolean): void {
+function showFloatText(container: HTMLElement, x: number, y: number, amount: number, critical: boolean): void {
   const el = document.createElement("div");
   el.className = critical ? "float-text float-text-critical" : "float-text";
   el.textContent = critical ? `+${amount}!` : `+${amount}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
-  document.body.appendChild(el);
+  container.appendChild(el);
   el.addEventListener("animationend", () => el.remove());
 }
 
+function applyScale(container: HTMLElement): void {
+  const scaleX = window.innerWidth / GAME_WIDTH;
+  const scaleY = window.innerHeight / GAME_HEIGHT;
+  const scale = Math.min(scaleX, scaleY);
+  const offsetX = (window.innerWidth - GAME_WIDTH * scale) / 2;
+  const offsetY = (window.innerHeight - GAME_HEIGHT * scale) / 2;
+  container.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
+
 export function createWorld(canvas: HTMLCanvasElement): void {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+  const width = GAME_WIDTH;
+  const height = GAME_HEIGHT;
+
+  // Game container with fixed logical size
+  const container = document.createElement("div");
+  container.id = "game-container";
+  canvas.parentElement!.appendChild(container);
+  container.appendChild(canvas);
 
   canvas.width = width;
   canvas.height = height;
+
+  applyScale(container);
+  window.addEventListener("resize", () => applyScale(container));
 
   // Counter display
   const counterEl = document.createElement("div");
   counterEl.id = "counter";
   counterEl.textContent = String(getState().collisionCount);
-  document.body.appendChild(counterEl);
+  container.appendChild(counterEl);
 
   const engine = Engine.create();
   const render = Render.create({
@@ -520,17 +540,19 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         const s = getState();
         const isCritical = s.criticalChance > 0 && Math.random() < s.criticalChance;
         const amount = isCritical ? s.collisionMultiplier * 5 : s.collisionMultiplier;
-        showFloatText(ball.position.x, ball.position.y, amount, isCritical);
+        showFloatText(container, ball.position.x, ball.position.y, amount, isCritical);
         updateState({ collisionCount: s.collisionCount + amount });
         counterEl.textContent = String(getState().collisionCount);
       }
     }
   });
 
-  // Click to drop ball (respects max)
+  // Click to drop ball — convert screen coords to logical coords
   canvas.addEventListener("click", (e) => {
     if (balls.size < getState().maxBalls) {
-      addBall(e.clientX);
+      const rect = canvas.getBoundingClientRect();
+      const logicalX = ((e.clientX - rect.left) / rect.width) * width;
+      addBall(logicalX);
     }
   });
 
@@ -551,7 +573,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   }
 
   // Shop menu
-  createShopMenu(counterEl, () => {
+  createShopMenu(container, counterEl, () => {
     if (balls.size < getState().maxBalls) {
       addBall(Math.random() * width);
     }
@@ -571,7 +593,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   setSynthVolume(vol.synth <= -30 ? -Infinity : vol.synth);
 
   // Settings menu
-  const settingsMenu = createSettingsMenu();
+  const settingsMenu = createSettingsMenu(container);
 
   // Escape key toggles pause + settings
   let paused = false;
