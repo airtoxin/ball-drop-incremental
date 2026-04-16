@@ -55,7 +55,7 @@ function createBall(x: number): Matter.Body {
     friction: 0,
     density: 1000,
     render: {
-      fillStyle: "#ffffff",
+      fillStyle: "#cccccc",
     },
   });
 }
