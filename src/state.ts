@@ -31,6 +31,7 @@ export interface SaveData {
     critical: number;
     multiDrop: number;
   };
+  muted: boolean;
   volume: {
     kick: number;
     hihat: number;
@@ -66,6 +67,7 @@ const defaults: SaveData = {
     critical: 0,
     multiDrop: 0,
   },
+  muted: false,
   volume: {
     kick: -4,
     hihat: -10,
@@ -114,13 +116,13 @@ export function disableSave(): void {
 export function save(): void {
   if (saveDisabled) return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(current));
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ volume: current.volume, locale: current.locale }));
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ volume: current.volume, locale: current.locale, muted: current.muted }));
 }
 
 export function load(): void {
   // Load settings first (persists across reset)
   const settingsRaw = localStorage.getItem(SETTINGS_KEY);
-  let settings: { volume?: Partial<SaveData["volume"]>; locale?: Locale } = {};
+  let settings: { volume?: Partial<SaveData["volume"]>; locale?: Locale; muted?: boolean } = {};
   if (settingsRaw) {
     try { settings = JSON.parse(settingsRaw); } catch { /* ignore */ }
   }
@@ -144,4 +146,5 @@ export function load(): void {
   // Settings always override (survive reset)
   if (settings.volume) Object.assign(current.volume, settings.volume);
   if (settings.locale) current.locale = settings.locale;
+  if (settings.muted != null) current.muted = settings.muted;
 }

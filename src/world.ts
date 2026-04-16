@@ -112,7 +112,7 @@ function createBall(x: number, traits: Set<BallTrait>): Matter.Body {
   });
 }
 
-function createSettingsMenu(container: HTMLElement): HTMLElement {
+function createSettingsMenu(container: HTMLElement, onVolumeChange: () => void): HTMLElement {
   const menu = document.createElement("div");
   menu.id = "settings-menu";
   menu.hidden = true;
@@ -142,8 +142,8 @@ function createSettingsMenu(container: HTMLElement): HTMLElement {
     input.value = String(getState().volume[s.key]);
     input.addEventListener("input", () => {
       const val = Number(input.value);
-      s.setFn(val <= -30 ? -Infinity : val);
       updateVolume({ [s.key]: val });
+      onVolumeChange();
     });
 
     row.appendChild(label);
@@ -912,45 +912,39 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     dropBalls(Math.random() * width, true);
   }, addBumpers, rebuildObstacles, rebuildObstacles);
 
-  // Apply saved volume on init
-  const vol = getState().volume;
-  setKickVolume(vol.kick <= -30 ? -Infinity : vol.kick);
-  setHihatVolume(vol.hihat <= -30 ? -Infinity : vol.hihat);
-  setSynthVolume(vol.synth <= -30 ? -Infinity : vol.synth);
+  // Centralized volume application — respects mute flag
+  function applyVolumes(): void {
+    const s = getState();
+    if (s.muted) {
+      setKickVolume(-Infinity);
+      setHihatVolume(-Infinity);
+      setSynthVolume(-Infinity);
+    } else {
+      setKickVolume(s.volume.kick <= -30 ? -Infinity : s.volume.kick);
+      setHihatVolume(s.volume.hihat <= -30 ? -Infinity : s.volume.hihat);
+      setSynthVolume(s.volume.synth <= -30 ? -Infinity : s.volume.synth);
+    }
+  }
+
+  applyVolumes();
 
   // Mute toggle button (top-right, next to hamburger)
   const muteBtn = document.createElement("button");
   muteBtn.id = "mute-btn";
-  muteBtn.textContent = "\u{1F50A}";
-  let muted = false;
-  let savedVolumes: { kick: number; hihat: number; synth: number } | null = null;
+  muteBtn.textContent = getState().muted ? "\u{1F507}" : "\u{1F50A}";
 
   muteBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (muted) {
-      if (savedVolumes) {
-        setKickVolume(savedVolumes.kick <= -30 ? -Infinity : savedVolumes.kick);
-        setHihatVolume(savedVolumes.hihat <= -30 ? -Infinity : savedVolumes.hihat);
-        setSynthVolume(savedVolumes.synth <= -30 ? -Infinity : savedVolumes.synth);
-        updateVolume(savedVolumes);
-      }
-      savedVolumes = null;
-      muteBtn.textContent = "\u{1F50A}";
-    } else {
-      savedVolumes = { ...getState().volume };
-      setKickVolume(-Infinity);
-      setHihatVolume(-Infinity);
-      setSynthVolume(-Infinity);
-      updateVolume({ kick: -30, hihat: -30, synth: -30 });
-      muteBtn.textContent = "\u{1F507}";
-    }
-    muted = !muted;
+    const newMuted = !getState().muted;
+    updateState({ muted: newMuted });
+    muteBtn.textContent = newMuted ? "\u{1F507}" : "\u{1F50A}";
+    applyVolumes();
   });
 
   container.appendChild(muteBtn);
 
   // Settings menu
-  const settingsMenu = createSettingsMenu(container);
+  const settingsMenu = createSettingsMenu(container, applyVolumes);
 
   // Escape key toggles pause + settings
   let paused = false;
