@@ -15,6 +15,13 @@ export interface SaveData {
   expandCols: number;
   hasBumpers: boolean;
   hasZigzag: boolean;
+  hasSpecialBalls: boolean;
+  specialBalls: {
+    big: number;
+    premium: number;
+    critical: number;
+    life: number;
+  };
   upgrades: {
     maxBalls: number;
     restitution: number;
@@ -43,6 +50,13 @@ const defaults: SaveData = {
   expandCols: 0,
   hasBumpers: false,
   hasZigzag: false,
+  hasSpecialBalls: false,
+  specialBalls: {
+    big: 0,
+    premium: 0,
+    critical: 0,
+    life: 0,
+  },
   upgrades: {
     maxBalls: 0,
     restitution: 0,
@@ -76,6 +90,11 @@ export function updateUpgrades(patch: Partial<SaveData["upgrades"]>): void {
   for (const fn of listeners) fn();
 }
 
+export function updateSpecialBalls(patch: Partial<SaveData["specialBalls"]>): void {
+  Object.assign(current.specialBalls, patch);
+  for (const fn of listeners) fn();
+}
+
 export function updateVolume(patch: Partial<SaveData["volume"]>): void {
   Object.assign(current.volume, patch);
   for (const fn of listeners) fn();
@@ -104,6 +123,7 @@ export function load(): void {
     current = {
       ...structuredClone(defaults),
       ...parsed,
+      specialBalls: { ...structuredClone(defaults.specialBalls), ...parsed.specialBalls },
       upgrades: { ...structuredClone(defaults.upgrades), ...parsed.upgrades },
       volume: { ...structuredClone(defaults.volume), ...parsed.volume },
     };

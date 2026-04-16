@@ -1,6 +1,6 @@
 import Matter from "matter-js";
 import { play, getDuration, setKickVolume, setHihatVolume, setSynthVolume } from "./synth";
-import { getState, updateState, updateUpgrades, updateVolume, onChange, disableSave } from "./state";
+import { getState, updateState, updateUpgrades, updateSpecialBalls, updateVolume, onChange, disableSave } from "./state";
 import { t, getLocale, setLocale, onLocaleChange } from "./i18n";
 import type { Locale } from "./i18n";
 
@@ -53,14 +53,61 @@ function createObstacles(width: number, height: number, zigzag: boolean, expandR
   return bodies;
 }
 
-function createBall(x: number): Matter.Body {
-  return Bodies.circle(x, 0, BALL_RADIUS, {
+type BallTrait = "big" | "premium" | "critical" | "life";
+
+interface BallMeta {
+  value: number;
+  traits: Set<BallTrait>;
+  lives: number;
+}
+
+const TRAIT_CHANCE_PER_LEVEL = 0.1;
+const BIG_RADIUS_MULT = 2.5;
+
+const TRAIT_COLORS: Record<BallTrait, [number, number, number]> = {
+  big: [204, 204, 204],       // same gray, size is the indicator
+  premium: [255, 215, 0],     // gold
+  critical: [255, 80, 80],    // red
+  life: [80, 255, 80],        // green
+};
+
+function rollTraits(): Set<BallTrait> {
+  const s = getState();
+  if (!s.hasSpecialBalls) return new Set();
+  const traits = new Set<BallTrait>();
+  const types: BallTrait[] = ["big", "premium", "critical", "life"];
+  for (const t of types) {
+    const chance = s.specialBalls[t] * TRAIT_CHANCE_PER_LEVEL;
+    if (chance > 0 && Math.random() < chance) {
+      traits.add(t);
+    }
+  }
+  return traits;
+}
+
+function traitColor(traits: Set<BallTrait>): string {
+  const colorTraits = (["premium", "critical", "life"] as BallTrait[]).filter(t => traits.has(t));
+  if (colorTraits.length === 0) return "#cccccc";
+  let r = 0, g = 0, b = 0;
+  for (const t of colorTraits) {
+    const [cr, cg, cb] = TRAIT_COLORS[t];
+    r += cr; g += cg; b += cb;
+  }
+  r = Math.round(r / colorTraits.length);
+  g = Math.round(g / colorTraits.length);
+  b = Math.round(b / colorTraits.length);
+  return `rgb(${r},${g},${b})`;
+}
+
+function createBall(x: number, traits: Set<BallTrait>): Matter.Body {
+  const radius = traits.has("big") ? BALL_RADIUS * BIG_RADIUS_MULT : BALL_RADIUS;
+  return Bodies.circle(x, 0, radius, {
     label: `ball_${getDuration()}`,
     restitution: getState().ballRestitution,
     friction: 0,
     density: 1000,
     render: {
-      fillStyle: "#cccccc",
+      fillStyle: traitColor(traits),
     },
   });
 }
@@ -495,6 +542,78 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
   zigzagRow.appendChild(zigzagBtn);
   panel.appendChild(zigzagRow);
 
+  // Traits section
+  const traitsDivider = document.createElement("h3");
+  traitsDivider.className = "shop-title";
+  traitsDivider.textContent = t("traits");
+  panel.appendChild(traitsDivider);
+
+  onLocaleChange(() => {
+    traitsDivider.textContent = t("traits");
+  });
+
+  // Traits unlock (one-time)
+  const traitsUnlockRow = document.createElement("div");
+  traitsUnlockRow.className = "shop-item";
+
+  const traitsUnlockLabel = document.createElement("span");
+  const traitsUnlockCost = 1000;
+
+  const traitsUnlockBtn = document.createElement("button");
+  traitsUnlockBtn.className = "shop-buy-btn";
+  traitsUnlockBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= traitsUnlockCost && !s.hasSpecialBalls) {
+      updateState({
+        collisionCount: s.collisionCount - traitsUnlockCost,
+        hasSpecialBalls: true,
+      });
+      counterEl.textContent = String(getState().collisionCount);
+    }
+  });
+
+  traitsUnlockRow.appendChild(traitsUnlockLabel);
+  traitsUnlockRow.appendChild(traitsUnlockBtn);
+  panel.appendChild(traitsUnlockRow);
+
+  // Individual trait items
+  type TraitKey = "big" | "premium" | "critical" | "life";
+  const traitDefs: { key: TraitKey; labelKey: "traitBig" | "traitPremium" | "traitCritical" | "traitLife"; cost: number }[] = [
+    { key: "big", labelKey: "traitBig", cost: 500 },
+    { key: "premium", labelKey: "traitPremium", cost: 500 },
+    { key: "critical", labelKey: "traitCritical", cost: 500 },
+    { key: "life", labelKey: "traitLife", cost: 500 },
+  ];
+
+  const traitLabels: HTMLElement[] = [];
+  const traitBtns: HTMLButtonElement[] = [];
+
+  for (const def of traitDefs) {
+    const row = document.createElement("div");
+    row.className = "shop-item";
+
+    const label = document.createElement("span");
+    traitLabels.push(label);
+
+    const btn = document.createElement("button");
+    btn.className = "shop-buy-btn";
+    traitBtns.push(btn);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const s = getState();
+      if (s.hasSpecialBalls && s.collisionCount >= def.cost) {
+        updateState({ collisionCount: s.collisionCount - def.cost });
+        updateSpecialBalls({ [def.key]: s.specialBalls[def.key] + 1 });
+        counterEl.textContent = String(getState().collisionCount);
+      }
+    });
+
+    row.appendChild(label);
+    row.appendChild(btn);
+    panel.appendChild(row);
+  }
+
   // Update labels on state change
   const refreshLabels = () => {
     const s = getState();
@@ -560,6 +679,33 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
     } else {
       zigzagLabel.textContent = `${t("zigzag")}: ${t("off")}`;
       zigzagBtn.textContent = `${t("buy")} (${zigzagCost})`;
+    }
+    // Traits
+    if (s.hasSpecialBalls) {
+      traitsUnlockLabel.textContent = `${t("traits")}: ${t("on")}`;
+      traitsUnlockBtn.textContent = t("purchased");
+      traitsUnlockBtn.disabled = true;
+      for (let i = 0; i < traitDefs.length; i++) {
+        const def = traitDefs[i];
+        const count = s.specialBalls[def.key];
+        const pct = Math.min(count * TRAIT_CHANCE_PER_LEVEL * 100, 100);
+        traitLabels[i].textContent = `${t(def.labelKey)}: ${pct}%`;
+        if (pct >= 100) {
+          traitBtns[i].textContent = t("max");
+          traitBtns[i].disabled = true;
+        } else {
+          traitBtns[i].textContent = `+10% (${def.cost})`;
+          traitBtns[i].disabled = false;
+        }
+      }
+    } else {
+      traitsUnlockLabel.textContent = `${t("traits")}: ${t("off")}`;
+      traitsUnlockBtn.textContent = `${t("unlock")} (${traitsUnlockCost})`;
+      for (let i = 0; i < traitDefs.length; i++) {
+        traitLabels[i].textContent = `${t(traitDefs[i].labelKey)}: --`;
+        traitBtns[i].textContent = "--";
+        traitBtns[i].disabled = true;
+      }
     }
   };
   onChange(refreshLabels);
@@ -636,26 +782,39 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   let obstacles = createObstacles(width, height, getState().hasZigzag, getState().expandRows, getState().expandCols);
   Composite.add(engine.world, obstacles);
 
-  // Track active balls and their internal score values
+  // Track active balls and their metadata
   const balls = new Map<number, Matter.Body>();
-  const ballValues = new Map<number, number>();
+  const ballMeta = new Map<number, BallMeta>();
 
   function addBall(x: number): void {
-    const ball = createBall(x);
+    const traits = rollTraits();
+    const ball = createBall(x, traits);
     balls.set(ball.id, ball);
-    ballValues.set(ball.id, 1);
+    ballMeta.set(ball.id, {
+      value: traits.has("premium") ? 3 : 1,
+      traits,
+      lives: traits.has("life") ? 1 : 0,
+    });
     Composite.add(engine.world, ball);
   }
 
-  // Remove off-screen balls
+  // Remove off-screen balls (life trait respawns once)
   Events.on(engine, "afterUpdate", () => {
     for (const [id, ball] of balls) {
       const { min } = ball.bounds;
       const outX = !getState().hasBumpers && (min.x < 0 || min.x > width);
       if (min.y > height || outX) {
-        balls.delete(id);
-        ballValues.delete(id);
-        Composite.remove(engine.world, ball);
+        const meta = ballMeta.get(id);
+        if (meta && meta.lives > 0 && min.y > height) {
+          // Life trait: respawn at top with same value
+          meta.lives--;
+          Body.setPosition(ball, { x: ball.position.x, y: 0 });
+          Body.setVelocity(ball, { x: 0, y: 0 });
+        } else {
+          balls.delete(id);
+          ballMeta.delete(id);
+          Composite.remove(engine.world, ball);
+        }
       }
     }
   });
@@ -690,13 +849,16 @@ export function createWorld(canvas: HTMLCanvasElement): void {
 
         // Score = ball's internal value, with critical bonus
         const s = getState();
-        const ballValue = ballValues.get(ball.id) ?? 1;
-        const isCritical = s.criticalChance > 0 && Math.random() < s.criticalChance;
+        const meta = ballMeta.get(ball.id);
+        const ballValue = meta?.value ?? 1;
+        // Critical trait adds +50% to base crit chance
+        const critChance = s.criticalChance + (meta?.traits.has("critical") ? 0.5 : 0);
+        const isCritical = critChance > 0 && Math.random() < critChance;
         const amount = Math.floor(isCritical ? ballValue * 5 : ballValue);
         showFloatText(container, ball.position.x, ball.position.y, amount, isCritical);
         updateState({ collisionCount: s.collisionCount + amount });
         // Grow ball value by bounce multiplier for next hit
-        ballValues.set(ball.id, ballValue * s.bounceMultiplier);
+        if (meta) meta.value = ballValue * s.bounceMultiplier;
         counterEl.textContent = String(getState().collisionCount);
       }
     }
