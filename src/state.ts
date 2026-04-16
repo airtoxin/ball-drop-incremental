@@ -7,6 +7,7 @@ export interface SaveData {
   autoDropInterval: number;
   collisionMultiplier: number;
   criticalChance: number;
+  hasBumpers: boolean;
   upgrades: {
     maxBalls: number;
     restitution: number;
@@ -28,6 +29,7 @@ const defaults: SaveData = {
   autoDropInterval: 0,
   collisionMultiplier: 1,
   criticalChance: 0,
+  hasBumpers: false,
   upgrades: {
     maxBalls: 0,
     restitution: 0,

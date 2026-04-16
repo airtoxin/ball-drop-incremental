@@ -90,7 +90,21 @@ function createSettingsMenu(): HTMLElement {
   return menu;
 }
 
-function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
+function createBumpers(width: number, height: number): Matter.Body[] {
+  const BUMPER_WIDTH = 15;
+  const bumperOpts: Matter.IChamferableBodyDefinition = {
+    isStatic: true,
+    restitution: 1,
+    render: { fillStyle: "#7a7aff" },
+    label: "bumper",
+  };
+  return [
+    Bodies.rectangle(-BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
+    Bodies.rectangle(width + BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
+  ];
+}
+
+function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBumpers: () => void): void {
   const btn = document.createElement("button");
   btn.id = "hamburger-btn";
   btn.innerHTML = "&#9776;";
@@ -263,6 +277,32 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
   criticalRow.appendChild(criticalBtn);
   panel.appendChild(criticalRow);
 
+  // Bumpers upgrade (one-time purchase)
+  const bumperRow = document.createElement("div");
+  bumperRow.className = "shop-item";
+
+  const bumperLabel = document.createElement("span");
+  const bumperCost = 600;
+
+  const bumperBtn = document.createElement("button");
+  bumperBtn.className = "shop-buy-btn";
+  bumperBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= bumperCost && !s.hasBumpers) {
+      updateState({
+        collisionCount: s.collisionCount - bumperCost,
+        hasBumpers: true,
+      });
+      counterEl.textContent = String(getState().collisionCount);
+      onAddBumpers();
+    }
+  });
+
+  bumperRow.appendChild(bumperLabel);
+  bumperRow.appendChild(bumperBtn);
+  panel.appendChild(bumperRow);
+
   // Update labels on state change
   const refreshLabels = () => {
     const s = getState();
@@ -286,6 +326,14 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
     } else {
       criticalLabel.textContent = `Critical: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
       criticalBtn.textContent = `+5% (${criticalCost})`;
+    }
+    if (s.hasBumpers) {
+      bumperLabel.textContent = "Bumpers: ON";
+      bumperBtn.textContent = "PURCHASED";
+      bumperBtn.disabled = true;
+    } else {
+      bumperLabel.textContent = "Bumpers: OFF";
+      bumperBtn.textContent = `BUY (${bumperCost})`;
     }
   };
   onChange(refreshLabels);
@@ -411,12 +459,23 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   const runner = Runner.create();
   Runner.run(runner, engine);
 
+  // Bumper helper
+  function addBumpers(): void {
+    const bumpers = createBumpers(width, height);
+    Composite.add(engine.world, bumpers);
+  }
+
+  // Restore bumpers from save
+  if (getState().hasBumpers) {
+    addBumpers();
+  }
+
   // Shop menu
   createShopMenu(counterEl, () => {
     if (balls.size < getState().maxBalls) {
       addBall(Math.random() * width);
     }
-  });
+  }, addBumpers);
 
   // Apply saved volume on init
   const vol = getState().volume;
