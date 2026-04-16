@@ -88,7 +88,14 @@ function createSettingsMenu(): HTMLElement {
   return menu;
 }
 
-function createShopMenu(): { toggle: () => void; isOpen: () => boolean } {
+interface GameState {
+  collisionCount: number;
+  maxBalls: number;
+  setCollisionCount: (n: number) => void;
+  setMaxBalls: (n: number) => void;
+}
+
+function createShopMenu(state: GameState): void {
   const btn = document.createElement("button");
   btn.id = "hamburger-btn";
   btn.innerHTML = "&#9776;";
@@ -96,6 +103,39 @@ function createShopMenu(): { toggle: () => void; isOpen: () => boolean } {
 
   const panel = document.createElement("div");
   panel.id = "shop-panel";
+
+  const title = document.createElement("h3");
+  title.className = "shop-title";
+  title.textContent = "Shop";
+  panel.appendChild(title);
+
+  // Max balls upgrade
+  const row = document.createElement("div");
+  row.className = "shop-item";
+
+  const label = document.createElement("span");
+  const cost = 100;
+  const updateLabel = () => {
+    label.textContent = `Max Balls: ${state.maxBalls}`;
+  };
+  updateLabel();
+
+  const buyBtn = document.createElement("button");
+  buyBtn.className = "shop-buy-btn";
+  buyBtn.textContent = `+1 (${cost})`;
+  buyBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (state.collisionCount >= cost) {
+      state.setCollisionCount(state.collisionCount - cost);
+      state.setMaxBalls(state.maxBalls + 1);
+      updateLabel();
+    }
+  });
+
+  row.appendChild(label);
+  row.appendChild(buyBtn);
+  panel.appendChild(row);
+
   document.body.appendChild(panel);
 
   let open = false;
@@ -104,14 +144,6 @@ function createShopMenu(): { toggle: () => void; isOpen: () => boolean } {
     open = !open;
     panel.classList.toggle("open", open);
   });
-
-  return {
-    toggle: () => {
-      open = !open;
-      panel.classList.toggle("open", open);
-    },
-    isOpen: () => open,
-  };
 }
 
 function showFloatText(x: number, y: number): void {
@@ -131,8 +163,9 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   canvas.width = width;
   canvas.height = height;
 
-  // Collision counter
+  // Game state
   let collisionCount = 0;
+  let maxBalls = 1;
   const counterEl = document.createElement("div");
   counterEl.id = "counter";
   counterEl.textContent = "0";
@@ -210,9 +243,11 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     }
   });
 
-  // Click to drop ball
+  // Click to drop ball (respects max)
   canvas.addEventListener("click", (e) => {
-    addBall(e.clientX);
+    if (balls.size < maxBalls) {
+      addBall(e.clientX);
+    }
   });
 
   // Start
@@ -221,7 +256,17 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   Runner.run(runner, engine);
 
   // Shop menu
-  createShopMenu();
+  createShopMenu({
+    get collisionCount() { return collisionCount; },
+    get maxBalls() { return maxBalls; },
+    setCollisionCount(n: number) {
+      collisionCount = n;
+      counterEl.textContent = String(collisionCount);
+    },
+    setMaxBalls(n: number) {
+      maxBalls = n;
+    },
+  });
 
   // Settings menu
   const settingsMenu = createSettingsMenu();

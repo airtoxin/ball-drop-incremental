@@ -58,6 +58,39 @@ canvas {
   transform: translateX(0);
 }
 
+.shop-title {
+  color: #fff;
+  font-family: monospace;
+  font-size: 18px;
+  padding: 20px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.shop-buy-btn {
+  background: rgba(122, 122, 255, 0.3);
+  border: 1px solid rgba(122, 122, 255, 0.6);
+  color: #fff;
+  font-family: monospace;
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.shop-buy-btn:hover {
+  background: rgba(122, 122, 255, 0.5);
+}
+
 #settings-menu {
   position: fixed;
   top: 50%;
