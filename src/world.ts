@@ -90,7 +90,7 @@ function createSettingsMenu(): HTMLElement {
   return menu;
 }
 
-function createShopMenu(counterEl: HTMLElement): void {
+function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
   const btn = document.createElement("button");
   btn.id = "hamburger-btn";
   btn.innerHTML = "&#9776;";
@@ -128,10 +128,96 @@ function createShopMenu(counterEl: HTMLElement): void {
   maxBallsRow.appendChild(maxBallsBtn);
   panel.appendChild(maxBallsRow);
 
+  // Restitution upgrade
+  const restitutionRow = document.createElement("div");
+  restitutionRow.className = "shop-item";
+
+  const restitutionLabel = document.createElement("span");
+  const restitutionCost = 200;
+
+  const restitutionBtn = document.createElement("button");
+  restitutionBtn.className = "shop-buy-btn";
+  restitutionBtn.textContent = `+0.05 (${restitutionCost})`;
+  restitutionBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= restitutionCost) {
+      updateState({
+        collisionCount: s.collisionCount - restitutionCost,
+        ballRestitution: Math.round((s.ballRestitution + 0.05) * 100) / 100,
+      });
+      updateUpgrades({ restitution: s.upgrades.restitution + 1 });
+      counterEl.textContent = String(getState().collisionCount);
+    }
+  });
+
+  restitutionRow.appendChild(restitutionLabel);
+  restitutionRow.appendChild(restitutionBtn);
+  panel.appendChild(restitutionRow);
+
+  // Auto drop upgrade
+  const autoDropRow = document.createElement("div");
+  autoDropRow.className = "shop-item";
+
+  const autoDropLabel = document.createElement("span");
+  const autoDropCost = 300;
+  const AUTO_DROP_BASE_INTERVAL = 3000;
+  const AUTO_DROP_MIN_INTERVAL = 200;
+
+  const autoDropBtn = document.createElement("button");
+  autoDropBtn.className = "shop-buy-btn";
+
+  let autoDropTimer: ReturnType<typeof setInterval> | null = null;
+
+  function startAutoDrop(interval: number): void {
+    if (autoDropTimer != null) clearInterval(autoDropTimer);
+    autoDropTimer = setInterval(onAddBall, interval);
+  }
+
+  autoDropBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= autoDropCost) {
+      const newLevel = s.upgrades.autoDrop + 1;
+      const newInterval = Math.max(
+        AUTO_DROP_MIN_INTERVAL,
+        AUTO_DROP_BASE_INTERVAL - (newLevel - 1) * 200,
+      );
+      updateState({
+        collisionCount: s.collisionCount - autoDropCost,
+        autoDropInterval: newInterval,
+      });
+      updateUpgrades({ autoDrop: newLevel });
+      counterEl.textContent = String(getState().collisionCount);
+      startAutoDrop(newInterval);
+    }
+  });
+
+  autoDropRow.appendChild(autoDropLabel);
+  autoDropRow.appendChild(autoDropBtn);
+  panel.appendChild(autoDropRow);
+
+  // Resume auto drop from saved state
+  const savedState = getState();
+  if (savedState.autoDropInterval > 0) {
+    startAutoDrop(savedState.autoDropInterval);
+  }
+
   // Update labels on state change
   const refreshLabels = () => {
     const s = getState();
     maxBallsLabel.textContent = `Max Balls: ${s.maxBalls}`;
+    restitutionLabel.textContent = `Restitution: ${s.ballRestitution.toFixed(2)}`;
+    if (s.autoDropInterval > 0) {
+      autoDropLabel.textContent = `Auto Drop: ${(s.autoDropInterval / 1000).toFixed(1)}s`;
+      autoDropBtn.textContent = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL
+        ? "MAX"
+        : `-0.2s (${autoDropCost})`;
+      autoDropBtn.disabled = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL;
+    } else {
+      autoDropLabel.textContent = "Auto Drop: OFF";
+      autoDropBtn.textContent = `ON (${autoDropCost})`;
+    }
   };
   onChange(refreshLabels);
   refreshLabels();
@@ -254,7 +340,11 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   Runner.run(runner, engine);
 
   // Shop menu
-  createShopMenu(counterEl);
+  createShopMenu(counterEl, () => {
+    if (balls.size < getState().maxBalls) {
+      addBall(Math.random() * width);
+    }
+  });
 
   // Apply saved volume on init
   const vol = getState().volume;
