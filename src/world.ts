@@ -27,9 +27,8 @@ function createObstacles(width: number, height: number, zigzag: boolean, expandR
   for (let gy = 0; gy < rows; gy++) {
     const isEvenRow = gy % 2 === 0;
     const zigzagRow = zigzag && isEvenRow;
-    const colRange = zigzagRow ? halfCols + 1 : halfCols;
     for (let gx = 0; gx < cols; gx++) {
-      if (gx < centerCol - colRange || gx > centerCol + colRange) continue;
+      if (gx < centerCol - halfCols || gx > centerCol + halfCols + (zigzagRow ? 1 : 0)) continue;
       if (gy < centerRow - halfRows || gy > centerRow + halfRows) continue;
       const offset = zigzagRow ? -GRID_SIZE / 2 : 0;
       const x = gx * GRID_SIZE + GRID_SIZE / 2 + offset;
