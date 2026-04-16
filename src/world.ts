@@ -249,7 +249,10 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
   const conditionalRows: { row: HTMLElement; visible: () => boolean }[] = [];
 
   function registerRow(row: HTMLElement, visible?: () => boolean): void {
-    if (visible) conditionalRows.push({ row, visible });
+    if (visible) {
+      row.hidden = !visible();
+      conditionalRows.push({ row, visible });
+    }
   }
 
   // Max balls upgrade
