@@ -1,7 +1,7 @@
 import Matter from "matter-js";
 import { play, getDuration } from "./synth";
 
-const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
+const { Engine, Render, Runner, Body, Bodies, Composite, Events } = Matter;
 
 const GRID_SIZE = 100;
 const BALL_RADIUS = 10;
@@ -28,10 +28,10 @@ function createObstacles(width: number, height: number): Matter.Body[] {
         },
       };
 
-      const body =
-        (gx + gy) % 4 === 0
-          ? Bodies.circle(x, y, GRID_SIZE / 5, opts)
-          : Bodies.polygon(x, y, 3, GRID_SIZE / 4, opts);
+      const isTriangle = (gx + gy) % 4 !== 0;
+      const body = isTriangle
+        ? Bodies.polygon(x, y, 3, GRID_SIZE / 4, { ...opts, label: "triangle" })
+        : Bodies.circle(x, y, GRID_SIZE / 5, opts);
 
       bodies.push(body);
     }
@@ -133,6 +133,11 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         setTimeout(() => {
           wall.render.fillStyle = WALL_COLOR;
         }, FLASH_DURATION);
+
+        // Rotate triangle obstacles on hit
+        if (wall.label === "triangle") {
+          Body.rotate(wall, Math.PI / 18); // 10 degrees
+        }
 
         // Show +1 floating text and increment counter
         showFloatText(ball.position.x, ball.position.y);
