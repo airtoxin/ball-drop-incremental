@@ -88,6 +88,32 @@ function createSettingsMenu(): HTMLElement {
   return menu;
 }
 
+function createShopMenu(): { toggle: () => void; isOpen: () => boolean } {
+  const btn = document.createElement("button");
+  btn.id = "hamburger-btn";
+  btn.innerHTML = "&#9776;";
+  document.body.appendChild(btn);
+
+  const panel = document.createElement("div");
+  panel.id = "shop-panel";
+  document.body.appendChild(panel);
+
+  let open = false;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    open = !open;
+    panel.classList.toggle("open", open);
+  });
+
+  return {
+    toggle: () => {
+      open = !open;
+      panel.classList.toggle("open", open);
+    },
+    isOpen: () => open,
+  };
+}
+
 function showFloatText(x: number, y: number): void {
   const el = document.createElement("div");
   el.className = "float-text";
@@ -193,6 +219,9 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   Render.run(render);
   const runner = Runner.create();
   Runner.run(runner, engine);
+
+  // Shop menu
+  createShopMenu();
 
   // Settings menu
   const settingsMenu = createSettingsMenu();
