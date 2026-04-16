@@ -77,7 +77,14 @@ export function onChange(fn: () => void): void {
   listeners.add(fn);
 }
 
+let saveDisabled = false;
+
+export function disableSave(): void {
+  saveDisabled = true;
+}
+
 export function save(): void {
+  if (saveDisabled) return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(current));
 }
 

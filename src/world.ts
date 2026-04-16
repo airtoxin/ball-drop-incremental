@@ -1,6 +1,6 @@
 import Matter from "matter-js";
 import { play, getDuration, setKickVolume, setHihatVolume, setSynthVolume } from "./synth";
-import { getState, updateState, updateUpgrades, updateVolume, onChange } from "./state";
+import { getState, updateState, updateUpgrades, updateVolume, onChange, disableSave } from "./state";
 import { t, getLocale, setLocale, onLocaleChange } from "./i18n";
 import type { Locale } from "./i18n";
 
@@ -181,6 +181,7 @@ function createSettingsMenu(container: HTMLElement): HTMLElement {
   resetBtn.textContent = t("reset");
   resetBtn.addEventListener("click", () => {
     if (window.confirm(t("resetConfirm"))) {
+      disableSave();
       localStorage.removeItem("ball-drop-save");
       window.location.reload();
     }
