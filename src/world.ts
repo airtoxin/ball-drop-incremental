@@ -203,6 +203,33 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
     startAutoDrop(savedState.autoDropInterval);
   }
 
+  // Collision multiplier upgrade
+  const multiplierRow = document.createElement("div");
+  multiplierRow.className = "shop-item";
+
+  const multiplierLabel = document.createElement("span");
+  const multiplierCost = 500;
+
+  const multiplierBtn = document.createElement("button");
+  multiplierBtn.className = "shop-buy-btn";
+  multiplierBtn.textContent = `+1 (${multiplierCost})`;
+  multiplierBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= multiplierCost) {
+      updateState({
+        collisionCount: s.collisionCount - multiplierCost,
+        collisionMultiplier: s.collisionMultiplier + 1,
+      });
+      updateUpgrades({ collisionMultiplier: s.upgrades.collisionMultiplier + 1 });
+      counterEl.textContent = String(getState().collisionCount);
+    }
+  });
+
+  multiplierRow.appendChild(multiplierLabel);
+  multiplierRow.appendChild(multiplierBtn);
+  panel.appendChild(multiplierRow);
+
   // Update labels on state change
   const refreshLabels = () => {
     const s = getState();
@@ -218,6 +245,7 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
       autoDropLabel.textContent = "Auto Drop: OFF";
       autoDropBtn.textContent = `ON (${autoDropCost})`;
     }
+    multiplierLabel.textContent = `Multiplier: x${s.collisionMultiplier}`;
   };
   onChange(refreshLabels);
   refreshLabels();
@@ -232,10 +260,10 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
   });
 }
 
-function showFloatText(x: number, y: number): void {
+function showFloatText(x: number, y: number, amount: number): void {
   const el = document.createElement("div");
   el.className = "float-text";
-  el.textContent = "+1";
+  el.textContent = `+${amount}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   document.body.appendChild(el);
@@ -319,9 +347,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
           Body.rotate(wall, Math.PI / 18); // 10 degrees
         }
 
-        // Show +1 floating text and increment counter
-        showFloatText(ball.position.x, ball.position.y);
-        updateState({ collisionCount: getState().collisionCount + 1 });
+        // Show floating text and increment counter with multiplier
+        const mult = getState().collisionMultiplier;
+        showFloatText(ball.position.x, ball.position.y, mult);
+        updateState({ collisionCount: getState().collisionCount + mult });
         counterEl.textContent = String(getState().collisionCount);
       }
     }
