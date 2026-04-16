@@ -142,5 +142,15 @@ export function createWorld(canvas: HTMLCanvasElement): void {
 
   // Start
   Render.run(render);
-  Runner.run(Runner.create(), engine);
+  const runner = Runner.create();
+  Runner.run(runner, engine);
+
+  // Escape key toggles pause
+  let paused = false;
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      paused = !paused;
+      runner.enabled = !paused;
+    }
+  });
 }
