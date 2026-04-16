@@ -28,6 +28,42 @@ canvas {
   z-index: 10;
 }
 
+#settings-menu {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(26, 26, 46, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 24px 32px;
+  z-index: 20;
+  font-family: monospace;
+  color: #fff;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.settings-row:last-child {
+  margin-bottom: 0;
+}
+
+.settings-row label {
+  width: 60px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.settings-row input[type="range"] {
+  width: 160px;
+  accent-color: #7a7aff;
+}
+
 .float-text {
   position: fixed;
   pointer-events: none;

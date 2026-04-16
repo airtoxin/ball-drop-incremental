@@ -86,6 +86,18 @@ export function play(duration: string, velocity: number): void {
   }, Tone.TransportTime("@16n"));
 }
 
+export function setKickVolume(db: number): void {
+  kick.volume.value = db;
+}
+
+export function setHihatVolume(db: number): void {
+  hihat.volume.value = db;
+}
+
+export function setSynthVolume(db: number): void {
+  synth.volume.value = db;
+}
+
 export async function initAudio(): Promise<void> {
   if (initialized) return;
   await Tone.start();

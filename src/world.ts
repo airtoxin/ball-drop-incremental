@@ -1,5 +1,5 @@
 import Matter from "matter-js";
-import { play, getDuration } from "./synth";
+import { play, getDuration, setKickVolume, setHihatVolume, setSynthVolume } from "./synth";
 
 const { Engine, Render, Runner, Body, Bodies, Composite, Events } = Matter;
 
@@ -49,6 +49,43 @@ function createBall(x: number): Matter.Body {
       fillStyle: `hsl(${Math.random() * 360}, 70%, 60%)`,
     },
   });
+}
+
+function createSettingsMenu(): HTMLElement {
+  const menu = document.createElement("div");
+  menu.id = "settings-menu";
+  menu.hidden = true;
+
+  const sliders: { label: string; value: number; onChange: (db: number) => void }[] = [
+    { label: "Kick", value: -4, onChange: setKickVolume },
+    { label: "Hi-Hat", value: -10, onChange: setHihatVolume },
+    { label: "Synth", value: -8, onChange: setSynthVolume },
+  ];
+
+  for (const s of sliders) {
+    const row = document.createElement("div");
+    row.className = "settings-row";
+
+    const label = document.createElement("label");
+    label.textContent = s.label;
+
+    const input = document.createElement("input");
+    input.type = "range";
+    input.min = "-30";
+    input.max = "0";
+    input.value = String(s.value);
+    input.addEventListener("input", () => {
+      const val = Number(input.value);
+      s.onChange(val <= -30 ? -Infinity : val);
+    });
+
+    row.appendChild(label);
+    row.appendChild(input);
+    menu.appendChild(row);
+  }
+
+  document.body.appendChild(menu);
+  return menu;
 }
 
 function showFloatText(x: number, y: number): void {
@@ -157,12 +194,16 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   const runner = Runner.create();
   Runner.run(runner, engine);
 
-  // Escape key toggles pause
+  // Settings menu
+  const settingsMenu = createSettingsMenu();
+
+  // Escape key toggles pause + settings
   let paused = false;
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       paused = !paused;
       runner.enabled = !paused;
+      settingsMenu.hidden = !paused;
     }
   });
 }
