@@ -125,12 +125,79 @@ function createSettingsMenu(container: HTMLElement): HTMLElement {
   langRow.appendChild(langSelect);
   menu.appendChild(langRow);
 
+  // Mute toggle
+  const muteRow = document.createElement("div");
+  muteRow.className = "settings-row";
+
+  const muteLabel = document.createElement("label");
+  muteLabel.textContent = "";
+
+  const muteBtn = document.createElement("button");
+  muteBtn.className = "settings-btn";
+  let muted = false;
+  let savedVolumes: { kick: number; hihat: number; synth: number } | null = null;
+
+  function updateMuteBtn(): void {
+    muteBtn.textContent = muted ? t("unmute") : t("mute");
+  }
+  updateMuteBtn();
+
+  muteBtn.addEventListener("click", () => {
+    if (muted) {
+      // Restore saved volumes
+      if (savedVolumes) {
+        for (const s of sliders) {
+          const val = savedVolumes[s.key];
+          s.setFn(val <= -30 ? -Infinity : val);
+        }
+        updateVolume(savedVolumes);
+      }
+      savedVolumes = null;
+    } else {
+      // Save current volumes and mute all
+      savedVolumes = { ...getState().volume };
+      for (const s of sliders) {
+        s.setFn(-Infinity);
+      }
+      updateVolume({ kick: -30, hihat: -30, synth: -30 });
+    }
+    muted = !muted;
+    updateMuteBtn();
+  });
+
+  muteRow.appendChild(muteLabel);
+  muteRow.appendChild(muteBtn);
+  menu.appendChild(muteRow);
+
+  // Reset button
+  const resetRow = document.createElement("div");
+  resetRow.className = "settings-row";
+
+  const resetLabel = document.createElement("label");
+  resetLabel.textContent = "";
+
+  const resetBtn = document.createElement("button");
+  resetBtn.className = "settings-btn settings-btn-danger";
+  resetBtn.textContent = t("reset");
+  resetBtn.addEventListener("click", () => {
+    if (window.confirm(t("resetConfirm"))) {
+      localStorage.removeItem("ball-drop-save");
+      window.location.reload();
+    }
+  });
+
+  resetRow.appendChild(resetLabel);
+  resetRow.appendChild(resetBtn);
+  menu.appendChild(resetRow);
+
   // Update labels on locale change
   onLocaleChange(() => {
     for (let i = 0; i < sliders.length; i++) {
       sliderLabels[i].textContent = t(sliders[i].labelKey);
     }
     langLabel.textContent = t("language");
+    updateMuteBtn();
+    resetBtn.textContent = t("reset");
   });
 
   container.appendChild(menu);

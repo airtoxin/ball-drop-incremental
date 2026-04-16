@@ -138,6 +138,30 @@ canvas {
   accent-color: #7a7aff;
 }
 
+.settings-btn {
+  background: rgba(122, 122, 255, 0.3);
+  border: 1px solid rgba(122, 122, 255, 0.6);
+  color: #fff;
+  font-family: monospace;
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.settings-btn:hover {
+  background: rgba(122, 122, 255, 0.5);
+}
+
+.settings-btn-danger {
+  background: rgba(255, 80, 80, 0.3);
+  border-color: rgba(255, 80, 80, 0.6);
+}
+
+.settings-btn-danger:hover {
+  background: rgba(255, 80, 80, 0.5);
+}
+
 .lang-select {
   background: rgba(26, 26, 46, 0.9);
   color: #fff;

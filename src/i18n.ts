@@ -17,6 +17,10 @@ const translations = {
     hihat: "Hi-Hat",
     synth: "Synth",
     language: "Language",
+    mute: "Mute All",
+    unmute: "Unmute",
+    reset: "Reset",
+    resetConfirm: "Are you sure? All progress will be lost.",
   },
   ja: {
     shop: "ショップ",
@@ -36,6 +40,10 @@ const translations = {
     hihat: "ハイハット",
     synth: "シンセ",
     language: "言語",
+    mute: "一括ミュート",
+    unmute: "ミュート解除",
+    reset: "リセット",
+    resetConfirm: "本当にリセットしますか？すべての進行が失われます。",
   },
 } as const;
 
