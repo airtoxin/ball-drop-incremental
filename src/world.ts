@@ -689,7 +689,7 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
       for (let i = 0; i < traitDefs.length; i++) {
         const def = traitDefs[i];
         const count = s.specialBalls[def.key];
-        const pct = Math.min(count * TRAIT_CHANCE_PER_LEVEL * 100, 100);
+        const pct = Math.min(Math.round(count * TRAIT_CHANCE_PER_LEVEL * 100), 100);
         traitLabels[i].textContent = `${t(def.labelKey)}: ${pct}%`;
         if (pct >= 100) {
           traitBtns[i].textContent = t("max");
