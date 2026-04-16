@@ -62,7 +62,7 @@ interface BallMeta {
 }
 
 const TRAIT_CHANCE_PER_LEVEL = 0.1;
-const BIG_RADIUS_MULT = 1.8;
+const BIG_RADIUS_MULT = 2;
 
 const TRAIT_COLORS: Record<BallTrait, [number, number, number]> = {
   big: [204, 204, 204],       // same gray, size is the indicator
