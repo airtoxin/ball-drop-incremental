@@ -1,6 +1,7 @@
 import type { Locale } from "./i18n";
 
 const SAVE_KEY = "ball-drop-save";
+const SETTINGS_KEY = "ball-drop-settings";
 
 export interface SaveData {
   locale: Locale;
@@ -39,7 +40,7 @@ export interface SaveData {
 
 const defaults: SaveData = {
   locale: "en",
-  collisionCount: 0,
+  collisionCount: 100_000_000,
   maxBalls: 1,
   ballRestitution: 0.9,
   autoDropInterval: 0,
@@ -113,21 +114,34 @@ export function disableSave(): void {
 export function save(): void {
   if (saveDisabled) return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(current));
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ volume: current.volume, locale: current.locale }));
 }
 
 export function load(): void {
-  const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return;
-  try {
-    const parsed = JSON.parse(raw) as Partial<SaveData>;
-    current = {
-      ...structuredClone(defaults),
-      ...parsed,
-      specialBalls: { ...structuredClone(defaults.specialBalls), ...parsed.specialBalls },
-      upgrades: { ...structuredClone(defaults.upgrades), ...parsed.upgrades },
-      volume: { ...structuredClone(defaults.volume), ...parsed.volume },
-    };
-  } catch {
-    // corrupted save — start fresh
+  // Load settings first (persists across reset)
+  const settingsRaw = localStorage.getItem(SETTINGS_KEY);
+  let settings: { volume?: Partial<SaveData["volume"]>; locale?: Locale } = {};
+  if (settingsRaw) {
+    try { settings = JSON.parse(settingsRaw); } catch { /* ignore */ }
   }
+
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as Partial<SaveData>;
+      current = {
+        ...structuredClone(defaults),
+        ...parsed,
+        specialBalls: { ...structuredClone(defaults.specialBalls), ...parsed.specialBalls },
+        upgrades: { ...structuredClone(defaults.upgrades), ...parsed.upgrades },
+        volume: { ...structuredClone(defaults.volume), ...parsed.volume },
+      };
+    } catch {
+      // corrupted save — start fresh
+    }
+  }
+
+  // Settings always override (survive reset)
+  if (settings.volume) Object.assign(current.volume, settings.volume);
+  if (settings.locale) current.locale = settings.locale;
 }
