@@ -25,10 +25,13 @@ function createObstacles(width: number, height: number, zigzag: boolean, expandR
   const halfRows = 1 + expandRows;
 
   for (let gy = 0; gy < rows; gy++) {
+    const isEvenRow = gy % 2 === 0;
+    const zigzagRow = zigzag && isEvenRow;
+    const colRange = zigzagRow ? halfCols + 1 : halfCols;
     for (let gx = 0; gx < cols; gx++) {
-      if (gx < centerCol - halfCols || gx > centerCol + halfCols) continue;
+      if (gx < centerCol - colRange || gx > centerCol + colRange) continue;
       if (gy < centerRow - halfRows || gy > centerRow + halfRows) continue;
-      const offset = zigzag && gy % 2 === 1 ? GRID_SIZE / 2 : 0;
+      const offset = zigzagRow ? -GRID_SIZE / 2 : 0;
       const x = gx * GRID_SIZE + GRID_SIZE / 2 + offset;
       const y = gy * GRID_SIZE + GRID_SIZE / 2;
       const angle = -Math.PI / 3 + (Math.random() * Math.PI) / 3;
