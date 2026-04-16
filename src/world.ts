@@ -230,6 +230,39 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
   multiplierRow.appendChild(multiplierBtn);
   panel.appendChild(multiplierRow);
 
+  // Critical chance upgrade
+  const criticalRow = document.createElement("div");
+  criticalRow.className = "shop-item";
+
+  const criticalLabel = document.createElement("span");
+  const criticalCost = 400;
+  const CRITICAL_CHANCE_PER_LEVEL = 0.05;
+  const CRITICAL_MAX_CHANCE = 0.5;
+  const CRITICAL_BONUS = 5;
+
+  const criticalBtn = document.createElement("button");
+  criticalBtn.className = "shop-buy-btn";
+  criticalBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= criticalCost && s.criticalChance < CRITICAL_MAX_CHANCE) {
+      const newChance = Math.min(
+        CRITICAL_MAX_CHANCE,
+        Math.round((s.criticalChance + CRITICAL_CHANCE_PER_LEVEL) * 100) / 100,
+      );
+      updateState({
+        collisionCount: s.collisionCount - criticalCost,
+        criticalChance: newChance,
+      });
+      updateUpgrades({ critical: s.upgrades.critical + 1 });
+      counterEl.textContent = String(getState().collisionCount);
+    }
+  });
+
+  criticalRow.appendChild(criticalLabel);
+  criticalRow.appendChild(criticalBtn);
+  panel.appendChild(criticalRow);
+
   // Update labels on state change
   const refreshLabels = () => {
     const s = getState();
@@ -246,6 +279,14 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
       autoDropBtn.textContent = `ON (${autoDropCost})`;
     }
     multiplierLabel.textContent = `Multiplier: x${s.collisionMultiplier}`;
+    if (s.criticalChance >= CRITICAL_MAX_CHANCE) {
+      criticalLabel.textContent = `Critical: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
+      criticalBtn.textContent = "MAX";
+      criticalBtn.disabled = true;
+    } else {
+      criticalLabel.textContent = `Critical: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
+      criticalBtn.textContent = `+5% (${criticalCost})`;
+    }
   };
   onChange(refreshLabels);
   refreshLabels();
@@ -260,10 +301,10 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void): void {
   });
 }
 
-function showFloatText(x: number, y: number, amount: number): void {
+function showFloatText(x: number, y: number, amount: number, critical: boolean): void {
   const el = document.createElement("div");
-  el.className = "float-text";
-  el.textContent = `+${amount}`;
+  el.className = critical ? "float-text float-text-critical" : "float-text";
+  el.textContent = critical ? `+${amount}!` : `+${amount}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   document.body.appendChild(el);
@@ -347,10 +388,12 @@ export function createWorld(canvas: HTMLCanvasElement): void {
           Body.rotate(wall, Math.PI / 18); // 10 degrees
         }
 
-        // Show floating text and increment counter with multiplier
-        const mult = getState().collisionMultiplier;
-        showFloatText(ball.position.x, ball.position.y, mult);
-        updateState({ collisionCount: getState().collisionCount + mult });
+        // Show floating text and increment counter with multiplier + critical
+        const s = getState();
+        const isCritical = s.criticalChance > 0 && Math.random() < s.criticalChance;
+        const amount = isCritical ? s.collisionMultiplier * 5 : s.collisionMultiplier;
+        showFloatText(ball.position.x, ball.position.y, amount, isCritical);
+        updateState({ collisionCount: s.collisionCount + amount });
         counterEl.textContent = String(getState().collisionCount);
       }
     }

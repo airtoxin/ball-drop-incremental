@@ -6,11 +6,13 @@ export interface SaveData {
   ballRestitution: number;
   autoDropInterval: number;
   collisionMultiplier: number;
+  criticalChance: number;
   upgrades: {
     maxBalls: number;
     restitution: number;
     autoDrop: number;
     collisionMultiplier: number;
+    critical: number;
   };
   volume: {
     kick: number;
@@ -25,11 +27,13 @@ const defaults: SaveData = {
   ballRestitution: 0.9,
   autoDropInterval: 0,
   collisionMultiplier: 1,
+  criticalChance: 0,
   upgrades: {
     maxBalls: 0,
     restitution: 0,
     autoDrop: 0,
     collisionMultiplier: 0,
+    critical: 0,
   },
   volume: {
     kick: -4,

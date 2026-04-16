@@ -138,6 +138,12 @@ canvas {
   animation: float-up 0.8s ease-out forwards;
 }
 
+.float-text-critical {
+  color: #ffdd00;
+  font-size: 24px;
+  text-shadow: 0 0 8px rgba(255, 221, 0, 0.8);
+}
+
 @keyframes float-up {
   0% {
     opacity: 1;
