@@ -10,6 +10,7 @@ export interface SaveData {
   autoDropInterval: number;
   bounceMultiplier: number;
   criticalChance: number;
+  multiDrop: number;
   hasBumpers: boolean;
   hasZigzag: boolean;
   upgrades: {
@@ -18,6 +19,7 @@ export interface SaveData {
     autoDrop: number;
     bounceMultiplier: number;
     critical: number;
+    multiDrop: number;
   };
   volume: {
     kick: number;
@@ -34,6 +36,7 @@ const defaults: SaveData = {
   autoDropInterval: 0,
   bounceMultiplier: 1,
   criticalChance: 0,
+  multiDrop: 1,
   hasBumpers: false,
   hasZigzag: false,
   upgrades: {
@@ -42,6 +45,7 @@ const defaults: SaveData = {
     autoDrop: 0,
     bounceMultiplier: 0,
     critical: 0,
+    multiDrop: 0,
   },
   volume: {
     kick: -4,

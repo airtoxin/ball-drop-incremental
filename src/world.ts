@@ -357,6 +357,33 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
   criticalRow.appendChild(criticalBtn);
   panel.appendChild(criticalRow);
 
+  // Multi drop upgrade
+  const multiDropRow = document.createElement("div");
+  multiDropRow.className = "shop-item";
+
+  const multiDropLabel = document.createElement("span");
+  const multiDropCost = 400;
+
+  const multiDropBtn = document.createElement("button");
+  multiDropBtn.className = "shop-buy-btn";
+  multiDropBtn.textContent = `+1 (${multiDropCost})`;
+  multiDropBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= multiDropCost) {
+      updateState({
+        collisionCount: s.collisionCount - multiDropCost,
+        multiDrop: s.multiDrop + 1,
+      });
+      updateUpgrades({ multiDrop: s.upgrades.multiDrop + 1 });
+      counterEl.textContent = String(getState().collisionCount);
+    }
+  });
+
+  multiDropRow.appendChild(multiDropLabel);
+  multiDropRow.appendChild(multiDropBtn);
+  panel.appendChild(multiDropRow);
+
   // Bumpers upgrade (one-time purchase)
   const bumperRow = document.createElement("div");
   bumperRow.className = "shop-item";
@@ -440,6 +467,7 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
       criticalLabel.textContent = `${t("critical")}: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
       criticalBtn.textContent = `+5% (${criticalCost})`;
     }
+    multiDropLabel.textContent = `${t("multiDrop")}: ${s.multiDrop}`;
     if (s.hasBumpers) {
       bumperLabel.textContent = `${t("bumpers")}: ${t("on")}`;
       bumperBtn.textContent = t("purchased");
@@ -597,12 +625,21 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     }
   });
 
+  // Drop multiple balls respecting max limit
+  function dropBalls(baseX: number, spread: boolean): void {
+    const s = getState();
+    for (let i = 0; i < s.multiDrop && balls.size < s.maxBalls; i++) {
+      const x = spread ? baseX + (i - (s.multiDrop - 1) / 2) * (BALL_RADIUS * 3) : baseX;
+      addBall(x);
+    }
+  }
+
   // Click to drop ball — convert screen coords to logical coords
   canvas.addEventListener("click", (e) => {
     if (balls.size < getState().maxBalls) {
       const rect = canvas.getBoundingClientRect();
       const logicalX = ((e.clientX - rect.left) / rect.width) * width;
-      addBall(logicalX);
+      dropBalls(logicalX, true);
     }
   });
 
@@ -624,9 +661,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
 
   // Shop menu
   createShopMenu(container, counterEl, () => {
-    if (balls.size < getState().maxBalls) {
-      addBall(Math.random() * width);
-    }
+    dropBalls(Math.random() * width, true);
   }, addBumpers, () => {
     // Replace obstacles with zigzag layout
     for (const ob of obstacles) {
