@@ -70,6 +70,13 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   canvas.width = width;
   canvas.height = height;
 
+  // Collision counter
+  let collisionCount = 0;
+  const counterEl = document.createElement("div");
+  counterEl.id = "counter";
+  counterEl.textContent = "0";
+  document.body.appendChild(counterEl);
+
   const engine = Engine.create();
   const render = Render.create({
     canvas,
@@ -135,8 +142,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
           wall.render.fillStyle = WALL_COLOR;
         }, FLASH_DURATION);
 
-        // Show +1 floating text
+        // Show +1 floating text and increment counter
         showFloatText(ball.position.x, ball.position.y);
+        collisionCount++;
+        counterEl.textContent = String(collisionCount);
       }
     }
   });

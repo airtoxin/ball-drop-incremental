@@ -16,6 +16,18 @@ canvas {
   display: block;
 }
 
+#counter {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 32px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 10;
+}
+
 .float-text {
   position: fixed;
   pointer-events: none;
