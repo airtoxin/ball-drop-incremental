@@ -11,6 +11,8 @@ export interface SaveData {
   bounceMultiplier: number;
   criticalChance: number;
   multiDrop: number;
+  expandRows: number;
+  expandCols: number;
   hasBumpers: boolean;
   hasZigzag: boolean;
   upgrades: {
@@ -37,6 +39,8 @@ const defaults: SaveData = {
   bounceMultiplier: 1,
   criticalChance: 0,
   multiDrop: 1,
+  expandRows: 0,
+  expandCols: 0,
   hasBumpers: false,
   hasZigzag: false,
   upgrades: {

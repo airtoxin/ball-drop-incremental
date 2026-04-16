@@ -14,20 +14,23 @@ const WALL_COLOR = "#4a4a6a";
 const FLASH_COLOR = "#ffffff";
 const FLASH_DURATION = 150;
 
-function createObstacles(width: number, height: number, zigzag: boolean): Matter.Body[] {
+function createObstacles(width: number, height: number, zigzag: boolean, expandRows: number, expandCols: number): Matter.Body[] {
   const bodies: Matter.Body[] = [];
-  const MARGIN_X = GRID_SIZE * 2; // keep 2 columns clear on each side
-  const MARGIN_Y = GRID_SIZE * 2; // keep 2 rows clear on top and bottom
   const cols = Math.ceil(width / GRID_SIZE);
   const rows = Math.ceil(height / GRID_SIZE);
+  const centerCol = Math.floor(cols / 2);
+  const centerRow = Math.floor(rows / 2);
+  // Start with 3x3, expand by 2 per level
+  const halfCols = 1 + expandCols;
+  const halfRows = 1 + expandRows;
 
   for (let gy = 0; gy < rows; gy++) {
     for (let gx = 0; gx < cols; gx++) {
+      if (gx < centerCol - halfCols || gx > centerCol + halfCols) continue;
+      if (gy < centerRow - halfRows || gy > centerRow + halfRows) continue;
       const offset = zigzag && gy % 2 === 1 ? GRID_SIZE / 2 : 0;
       const x = gx * GRID_SIZE + GRID_SIZE / 2 + offset;
       const y = gy * GRID_SIZE + GRID_SIZE / 2;
-      if (x < MARGIN_X || x > width - MARGIN_X) continue;
-      if (y < MARGIN_Y || y > height - MARGIN_Y) continue;
       const angle = -Math.PI / 3 + (Math.random() * Math.PI) / 3;
       const opts: Matter.IChamferableBodyDefinition = {
         isStatic: true,
@@ -175,7 +178,7 @@ function createBumpers(width: number, height: number): Matter.Body[] {
   ];
 }
 
-function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBall: () => void, onAddBumpers: () => void, onZigzag: () => void): void {
+function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBall: () => void, onAddBumpers: () => void, onZigzag: () => void, onRebuildObstacles: () => void): void {
   const btn = document.createElement("button");
   btn.id = "hamburger-btn";
   btn.innerHTML = "&#9776;";
@@ -384,6 +387,60 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
   multiDropRow.appendChild(multiDropBtn);
   panel.appendChild(multiDropRow);
 
+  // Expand rows upgrade
+  const expandRowsRow = document.createElement("div");
+  expandRowsRow.className = "shop-item";
+
+  const expandRowsLabel = document.createElement("span");
+  const expandRowsCost = 300;
+  const EXPAND_ROWS_MAX = 2;
+
+  const expandRowsBtn = document.createElement("button");
+  expandRowsBtn.className = "shop-buy-btn";
+  expandRowsBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= expandRowsCost && s.expandRows < EXPAND_ROWS_MAX) {
+      updateState({
+        collisionCount: s.collisionCount - expandRowsCost,
+        expandRows: s.expandRows + 1,
+      });
+      counterEl.textContent = String(getState().collisionCount);
+      onRebuildObstacles();
+    }
+  });
+
+  expandRowsRow.appendChild(expandRowsLabel);
+  expandRowsRow.appendChild(expandRowsBtn);
+  panel.appendChild(expandRowsRow);
+
+  // Expand columns upgrade
+  const expandColsRow = document.createElement("div");
+  expandColsRow.className = "shop-item";
+
+  const expandColsLabel = document.createElement("span");
+  const expandColsCost = 300;
+  const EXPAND_COLS_MAX = 6;
+
+  const expandColsBtn = document.createElement("button");
+  expandColsBtn.className = "shop-buy-btn";
+  expandColsBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const s = getState();
+    if (s.collisionCount >= expandColsCost && s.expandCols < EXPAND_COLS_MAX) {
+      updateState({
+        collisionCount: s.collisionCount - expandColsCost,
+        expandCols: s.expandCols + 1,
+      });
+      counterEl.textContent = String(getState().collisionCount);
+      onRebuildObstacles();
+    }
+  });
+
+  expandColsRow.appendChild(expandColsLabel);
+  expandColsRow.appendChild(expandColsBtn);
+  panel.appendChild(expandColsRow);
+
   // Bumpers upgrade (one-time purchase)
   const bumperRow = document.createElement("div");
   bumperRow.className = "shop-item";
@@ -468,6 +525,24 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
       criticalBtn.textContent = `+5% (${criticalCost})`;
     }
     multiDropLabel.textContent = `${t("multiDrop")}: ${s.multiDrop}`;
+    const totalRows = 3 + s.expandRows * 2;
+    if (s.expandRows >= EXPAND_ROWS_MAX) {
+      expandRowsLabel.textContent = `${t("expandRows")}: ${totalRows}`;
+      expandRowsBtn.textContent = t("max");
+      expandRowsBtn.disabled = true;
+    } else {
+      expandRowsLabel.textContent = `${t("expandRows")}: ${totalRows}`;
+      expandRowsBtn.textContent = `+2 (${expandRowsCost})`;
+    }
+    const totalCols = 3 + s.expandCols * 2;
+    if (s.expandCols >= EXPAND_COLS_MAX) {
+      expandColsLabel.textContent = `${t("expandCols")}: ${totalCols}`;
+      expandColsBtn.textContent = t("max");
+      expandColsBtn.disabled = true;
+    } else {
+      expandColsLabel.textContent = `${t("expandCols")}: ${totalCols}`;
+      expandColsBtn.textContent = `+2 (${expandColsCost})`;
+    }
     if (s.hasBumpers) {
       bumperLabel.textContent = `${t("bumpers")}: ${t("on")}`;
       bumperBtn.textContent = t("purchased");
@@ -556,7 +631,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   });
 
   // Static obstacles
-  let obstacles = createObstacles(width, height, getState().hasZigzag);
+  let obstacles = createObstacles(width, height, getState().hasZigzag, getState().expandRows, getState().expandCols);
   Composite.add(engine.world, obstacles);
 
   // Track active balls and their internal score values
@@ -660,16 +735,18 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   }
 
   // Shop menu
-  createShopMenu(container, counterEl, () => {
-    dropBalls(Math.random() * width, true);
-  }, addBumpers, () => {
-    // Replace obstacles with zigzag layout
+  function rebuildObstacles(): void {
     for (const ob of obstacles) {
       Composite.remove(engine.world, ob);
     }
-    obstacles = createObstacles(width, height, true);
+    const st = getState();
+    obstacles = createObstacles(width, height, st.hasZigzag, st.expandRows, st.expandCols);
     Composite.add(engine.world, obstacles);
-  });
+  }
+
+  createShopMenu(container, counterEl, () => {
+    dropBalls(Math.random() * width, true);
+  }, addBumpers, rebuildObstacles, rebuildObstacles);
 
   // Apply saved volume on init
   const vol = getState().volume;
