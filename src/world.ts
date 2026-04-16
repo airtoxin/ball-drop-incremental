@@ -629,7 +629,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   function dropBalls(baseX: number, spread: boolean): void {
     const s = getState();
     for (let i = 0; i < s.multiDrop && balls.size < s.maxBalls; i++) {
-      const x = spread ? baseX + (i - (s.multiDrop - 1) / 2) * (BALL_RADIUS * 3) : baseX;
+      const x = spread ? baseX + (i - (s.multiDrop - 1) / 2) * (BALL_RADIUS * 8) : baseX;
       addBall(x);
     }
   }
