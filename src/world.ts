@@ -250,8 +250,8 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
 
   const autoDropLabel = document.createElement("span");
   const autoDropCost = 300;
-  const AUTO_DROP_BASE_INTERVAL = 3000;
-  const AUTO_DROP_MIN_INTERVAL = 200;
+  const AUTO_DROP_BASE_INTERVAL = 10000;
+  const AUTO_DROP_MIN_INTERVAL = 1000;
 
   const autoDropBtn = document.createElement("button");
   autoDropBtn.className = "shop-buy-btn";
@@ -270,7 +270,7 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
       const newLevel = s.upgrades.autoDrop + 1;
       const newInterval = Math.max(
         AUTO_DROP_MIN_INTERVAL,
-        AUTO_DROP_BASE_INTERVAL - (newLevel - 1) * 200,
+        AUTO_DROP_BASE_INTERVAL - (newLevel - 1) * 1000,
       );
       updateState({
         collisionCount: s.collisionCount - autoDropCost,
@@ -418,7 +418,7 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
       autoDropLabel.textContent = `${t("autoDrop")}: ${(s.autoDropInterval / 1000).toFixed(1)}s`;
       autoDropBtn.textContent = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL
         ? t("max")
-        : `-0.2s (${autoDropCost})`;
+        : `-1s (${autoDropCost})`;
       autoDropBtn.disabled = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL;
     } else {
       autoDropLabel.textContent = `${t("autoDrop")}: ${t("off")}`;
