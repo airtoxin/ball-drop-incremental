@@ -8,7 +8,7 @@ export interface SaveData {
   maxBalls: number;
   ballRestitution: number;
   autoDropInterval: number;
-  collisionMultiplier: number;
+  bounceMultiplier: number;
   criticalChance: number;
   hasBumpers: boolean;
   hasZigzag: boolean;
@@ -16,7 +16,7 @@ export interface SaveData {
     maxBalls: number;
     restitution: number;
     autoDrop: number;
-    collisionMultiplier: number;
+    bounceMultiplier: number;
     critical: number;
   };
   volume: {
@@ -32,7 +32,7 @@ const defaults: SaveData = {
   maxBalls: 1,
   ballRestitution: 0.9,
   autoDropInterval: 0,
-  collisionMultiplier: 1,
+  bounceMultiplier: 1,
   criticalChance: 0,
   hasBumpers: false,
   hasZigzag: false,
@@ -40,7 +40,7 @@ const defaults: SaveData = {
     maxBalls: 0,
     restitution: 0,
     autoDrop: 0,
-    collisionMultiplier: 0,
+    bounceMultiplier: 0,
     critical: 0,
   },
   volume: {

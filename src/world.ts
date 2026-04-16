@@ -269,25 +269,30 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
     startAutoDrop(savedState.autoDropInterval);
   }
 
-  // Collision multiplier upgrade
+  // Bounce multiplier upgrade
   const multiplierRow = document.createElement("div");
   multiplierRow.className = "shop-item";
 
   const multiplierLabel = document.createElement("span");
   const multiplierCost = 500;
+  const MULTIPLIER_STEP = 0.05;
+  const MULTIPLIER_MAX = 2;
 
   const multiplierBtn = document.createElement("button");
   multiplierBtn.className = "shop-buy-btn";
-  multiplierBtn.textContent = `+1 (${multiplierCost})`;
   multiplierBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= multiplierCost) {
+    if (s.collisionCount >= multiplierCost && s.bounceMultiplier < MULTIPLIER_MAX) {
+      const newMult = Math.min(
+        MULTIPLIER_MAX,
+        Math.round((s.bounceMultiplier + MULTIPLIER_STEP) * 100) / 100,
+      );
       updateState({
         collisionCount: s.collisionCount - multiplierCost,
-        collisionMultiplier: s.collisionMultiplier + 1,
+        bounceMultiplier: newMult,
       });
-      updateUpgrades({ collisionMultiplier: s.upgrades.collisionMultiplier + 1 });
+      updateUpgrades({ bounceMultiplier: s.upgrades.bounceMultiplier + 1 });
       counterEl.textContent = String(getState().collisionCount);
     }
   });
@@ -396,7 +401,14 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
       autoDropLabel.textContent = `${t("autoDrop")}: ${t("off")}`;
       autoDropBtn.textContent = `${t("on")} (${autoDropCost})`;
     }
-    multiplierLabel.textContent = `${t("multiplier")}: x${s.collisionMultiplier}`;
+    multiplierLabel.textContent = `${t("multiplier")}: x${s.bounceMultiplier.toFixed(2)}`;
+    if (s.bounceMultiplier >= MULTIPLIER_MAX) {
+      multiplierBtn.textContent = t("max");
+      multiplierBtn.disabled = true;
+    } else {
+      multiplierBtn.textContent = `+0.05 (${multiplierCost})`;
+      multiplierBtn.disabled = false;
+    }
     if (s.criticalChance >= CRITICAL_MAX_CHANCE) {
       criticalLabel.textContent = `${t("critical")}: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
       criticalBtn.textContent = t("max");
@@ -496,12 +508,14 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   let obstacles = createObstacles(width, height, getState().hasZigzag);
   Composite.add(engine.world, obstacles);
 
-  // Track active balls
+  // Track active balls and their internal score values
   const balls = new Map<number, Matter.Body>();
+  const ballValues = new Map<number, number>();
 
   function addBall(x: number): void {
     const ball = createBall(x);
     balls.set(ball.id, ball);
+    ballValues.set(ball.id, 1);
     Composite.add(engine.world, ball);
   }
 
@@ -512,6 +526,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       const outX = !getState().hasBumpers && (min.x < 0 || min.x > width);
       if (min.y > height || outX) {
         balls.delete(id);
+        ballValues.delete(id);
         Composite.remove(engine.world, ball);
       }
     }
@@ -545,12 +560,15 @@ export function createWorld(canvas: HTMLCanvasElement): void {
           Body.rotate(wall, Math.PI / 18); // 10 degrees
         }
 
-        // Show floating text and increment counter with multiplier + critical
+        // Score = ball's internal value, with critical bonus
         const s = getState();
+        const ballValue = ballValues.get(ball.id) ?? 1;
         const isCritical = s.criticalChance > 0 && Math.random() < s.criticalChance;
-        const amount = isCritical ? s.collisionMultiplier * 5 : s.collisionMultiplier;
+        const amount = Math.floor(isCritical ? ballValue * 5 : ballValue);
         showFloatText(container, ball.position.x, ball.position.y, amount, isCritical);
         updateState({ collisionCount: s.collisionCount + amount });
+        // Grow ball value by bounce multiplier for next hit
+        ballValues.set(ball.id, ballValue * s.bounceMultiplier);
         counterEl.textContent = String(getState().collisionCount);
       }
     }
