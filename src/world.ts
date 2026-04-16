@@ -138,7 +138,7 @@ function createSettingsMenu(container: HTMLElement): HTMLElement {
 }
 
 function createBumpers(width: number, height: number): Matter.Body[] {
-  const BUMPER_WIDTH = 15;
+  const BUMPER_WIDTH = 100;
   const bumperOpts: Matter.IChamferableBodyDefinition = {
     isStatic: true,
     restitution: 1,
@@ -476,7 +476,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   counterEl.textContent = String(getState().collisionCount);
   container.appendChild(counterEl);
 
-  const engine = Engine.create();
+  const engine = Engine.create({
+    positionIterations: 10,
+    velocityIterations: 10,
+  });
   const render = Render.create({
     canvas,
     engine,
