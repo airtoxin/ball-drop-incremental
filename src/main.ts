@@ -1,9 +1,11 @@
 import "./style.css";
 import { createWorld } from "./world";
 import { initAudio } from "./synth";
-import { load, save } from "./state";
+import { getState, load, save } from "./state";
+import { setLocale } from "./i18n";
 
 load();
+setLocale(getState().locale);
 
 const canvas = document.createElement("canvas");
 document.getElementById("app")!.appendChild(canvas);

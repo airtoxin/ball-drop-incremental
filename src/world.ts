@@ -1,6 +1,8 @@
 import Matter from "matter-js";
 import { play, getDuration, setKickVolume, setHihatVolume, setSynthVolume } from "./synth";
 import { getState, updateState, updateUpgrades, updateVolume, onChange } from "./state";
+import { t, getLocale, setLocale, onLocaleChange } from "./i18n";
+import type { Locale } from "./i18n";
 
 const { Engine, Render, Runner, Body, Bodies, Composite, Events } = Matter;
 
@@ -58,18 +60,22 @@ function createSettingsMenu(): HTMLElement {
   menu.hidden = true;
 
   const state = getState();
-  const sliders: { label: string; key: keyof typeof state.volume; setFn: (db: number) => void }[] = [
-    { label: "Kick", key: "kick", setFn: setKickVolume },
-    { label: "Hi-Hat", key: "hihat", setFn: setHihatVolume },
-    { label: "Synth", key: "synth", setFn: setSynthVolume },
+  type SliderDef = { labelKey: "kick" | "hihat" | "synth"; key: keyof typeof state.volume; setFn: (db: number) => void };
+  const sliders: SliderDef[] = [
+    { labelKey: "kick", key: "kick", setFn: setKickVolume },
+    { labelKey: "hihat", key: "hihat", setFn: setHihatVolume },
+    { labelKey: "synth", key: "synth", setFn: setSynthVolume },
   ];
+
+  const sliderLabels: HTMLElement[] = [];
 
   for (const s of sliders) {
     const row = document.createElement("div");
     row.className = "settings-row";
 
     const label = document.createElement("label");
-    label.textContent = s.label;
+    label.textContent = t(s.labelKey);
+    sliderLabels.push(label);
 
     const input = document.createElement("input");
     input.type = "range";
@@ -86,6 +92,40 @@ function createSettingsMenu(): HTMLElement {
     row.appendChild(input);
     menu.appendChild(row);
   }
+
+  // Language selector
+  const langRow = document.createElement("div");
+  langRow.className = "settings-row";
+
+  const langLabel = document.createElement("label");
+  langLabel.textContent = t("language");
+
+  const langSelect = document.createElement("select");
+  langSelect.className = "lang-select";
+  for (const [value, label] of [["en", "English"], ["ja", "日本語"]] as const) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    if (getLocale() === value) opt.selected = true;
+    langSelect.appendChild(opt);
+  }
+  langSelect.addEventListener("change", () => {
+    const locale = langSelect.value as Locale;
+    setLocale(locale);
+    updateState({ locale });
+  });
+
+  langRow.appendChild(langLabel);
+  langRow.appendChild(langSelect);
+  menu.appendChild(langRow);
+
+  // Update labels on locale change
+  onLocaleChange(() => {
+    for (let i = 0; i < sliders.length; i++) {
+      sliderLabels[i].textContent = t(sliders[i].labelKey);
+    }
+    langLabel.textContent = t("language");
+  });
 
   document.body.appendChild(menu);
   return menu;
@@ -116,8 +156,12 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBump
 
   const title = document.createElement("h3");
   title.className = "shop-title";
-  title.textContent = "Shop";
+  title.textContent = t("shop");
   panel.appendChild(title);
+
+  onLocaleChange(() => {
+    title.textContent = t("shop");
+  });
 
   // Max balls upgrade
   const maxBallsRow = document.createElement("div");
@@ -333,45 +377,46 @@ function createShopMenu(counterEl: HTMLElement, onAddBall: () => void, onAddBump
   // Update labels on state change
   const refreshLabels = () => {
     const s = getState();
-    maxBallsLabel.textContent = `Max Balls: ${s.maxBalls}`;
-    restitutionLabel.textContent = `Restitution: ${s.ballRestitution.toFixed(2)}`;
+    maxBallsLabel.textContent = `${t("maxBalls")}: ${s.maxBalls}`;
+    restitutionLabel.textContent = `${t("restitution")}: ${s.ballRestitution.toFixed(2)}`;
     if (s.autoDropInterval > 0) {
-      autoDropLabel.textContent = `Auto Drop: ${(s.autoDropInterval / 1000).toFixed(1)}s`;
+      autoDropLabel.textContent = `${t("autoDrop")}: ${(s.autoDropInterval / 1000).toFixed(1)}s`;
       autoDropBtn.textContent = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL
-        ? "MAX"
+        ? t("max")
         : `-0.2s (${autoDropCost})`;
       autoDropBtn.disabled = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL;
     } else {
-      autoDropLabel.textContent = "Auto Drop: OFF";
-      autoDropBtn.textContent = `ON (${autoDropCost})`;
+      autoDropLabel.textContent = `${t("autoDrop")}: ${t("off")}`;
+      autoDropBtn.textContent = `${t("on")} (${autoDropCost})`;
     }
-    multiplierLabel.textContent = `Multiplier: x${s.collisionMultiplier}`;
+    multiplierLabel.textContent = `${t("multiplier")}: x${s.collisionMultiplier}`;
     if (s.criticalChance >= CRITICAL_MAX_CHANCE) {
-      criticalLabel.textContent = `Critical: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
-      criticalBtn.textContent = "MAX";
+      criticalLabel.textContent = `${t("critical")}: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
+      criticalBtn.textContent = t("max");
       criticalBtn.disabled = true;
     } else {
-      criticalLabel.textContent = `Critical: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
+      criticalLabel.textContent = `${t("critical")}: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
       criticalBtn.textContent = `+5% (${criticalCost})`;
     }
     if (s.hasBumpers) {
-      bumperLabel.textContent = "Bumpers: ON";
-      bumperBtn.textContent = "PURCHASED";
+      bumperLabel.textContent = `${t("bumpers")}: ${t("on")}`;
+      bumperBtn.textContent = t("purchased");
       bumperBtn.disabled = true;
     } else {
-      bumperLabel.textContent = "Bumpers: OFF";
-      bumperBtn.textContent = `BUY (${bumperCost})`;
+      bumperLabel.textContent = `${t("bumpers")}: ${t("off")}`;
+      bumperBtn.textContent = `${t("buy")} (${bumperCost})`;
     }
     if (s.hasZigzag) {
-      zigzagLabel.textContent = "Zigzag: ON";
-      zigzagBtn.textContent = "PURCHASED";
+      zigzagLabel.textContent = `${t("zigzag")}: ${t("on")}`;
+      zigzagBtn.textContent = t("purchased");
       zigzagBtn.disabled = true;
     } else {
-      zigzagLabel.textContent = "Zigzag: OFF";
-      zigzagBtn.textContent = `BUY (${zigzagCost})`;
+      zigzagLabel.textContent = `${t("zigzag")}: ${t("off")}`;
+      zigzagBtn.textContent = `${t("buy")} (${zigzagCost})`;
     }
   };
   onChange(refreshLabels);
+  onLocaleChange(refreshLabels);
   refreshLabels();
 
   document.body.appendChild(panel);

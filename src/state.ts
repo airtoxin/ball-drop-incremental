@@ -1,6 +1,9 @@
+import type { Locale } from "./i18n";
+
 const SAVE_KEY = "ball-drop-save";
 
 export interface SaveData {
+  locale: Locale;
   collisionCount: number;
   maxBalls: number;
   ballRestitution: number;
@@ -24,6 +27,7 @@ export interface SaveData {
 }
 
 const defaults: SaveData = {
+  locale: "en",
   collisionCount: 0,
   maxBalls: 1,
   ballRestitution: 0.9,

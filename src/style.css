@@ -127,6 +127,16 @@ canvas {
   accent-color: #7a7aff;
 }
 
+.lang-select {
+  background: rgba(26, 26, 46, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: monospace;
+  font-size: 14px;
+}
+
 .float-text {
   position: fixed;
   pointer-events: none;
