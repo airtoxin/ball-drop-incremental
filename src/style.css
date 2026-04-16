@@ -68,7 +68,7 @@ canvas {
   position: absolute;
   top: 0;
   right: 0;
-  width: 300px;
+  width: 400px;
   height: 100%;
   background: rgba(26, 26, 46, 0.95);
   border-left: 1px solid rgba(255, 255, 255, 0.2);
@@ -84,8 +84,8 @@ canvas {
 .shop-title {
   color: #fff;
   font-family: monospace;
-  font-size: 18px;
-  padding: 20px 16px 12px;
+  font-size: 22px;
+  padding: 24px 20px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
@@ -93,10 +93,10 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 14px 20px;
   color: #fff;
   font-family: monospace;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .shop-buy-btn {
@@ -104,8 +104,8 @@ canvas {
   border: 1px solid rgba(122, 122, 255, 0.6);
   color: #fff;
   font-family: monospace;
-  font-size: 13px;
-  padding: 4px 12px;
+  font-size: 15px;
+  padding: 6px 14px;
   border-radius: 4px;
   cursor: pointer;
 }
