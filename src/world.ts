@@ -1,12 +1,11 @@
 import Matter from "matter-js";
 import { play, getDuration } from "./synth";
 
-const { Engine, Render, Runner, Bodies, Composite, Events, Mouse, MouseConstraint } = Matter;
+const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
 
 const GRID_SIZE = 100;
 const BALL_RADIUS = 10;
 const BALL_RESTITUTION = 0.9;
-const BALL_COUNT = 4;
 const WALL_COLOR = "#4a4a6a";
 const FLASH_COLOR = "#ffffff";
 const FLASH_DURATION = 150;
@@ -40,8 +39,7 @@ function createObstacles(width: number, height: number): Matter.Body[] {
   return bodies;
 }
 
-function createBall(width: number): Matter.Body {
-  const x = width / 4 + (Math.random() * width) / 2;
+function createBall(x: number): Matter.Body {
   return Bodies.circle(x, 0, BALL_RADIUS, {
     label: `ball_${getDuration()}`,
     restitution: BALL_RESTITUTION,
@@ -96,25 +94,19 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   // Track active balls
   const balls = new Map<number, Matter.Body>();
 
-  function addBall(): void {
-    const ball = createBall(width);
+  function addBall(x: number): void {
+    const ball = createBall(x);
     balls.set(ball.id, ball);
     Composite.add(engine.world, ball);
   }
 
-  // Spawn initial balls
-  for (let i = 0; i < BALL_COUNT; i++) {
-    setTimeout(() => addBall(), i * 500);
-  }
-
-  // Remove off-screen balls and respawn
+  // Remove off-screen balls
   Events.on(engine, "afterUpdate", () => {
     for (const [id, ball] of balls) {
       const { min } = ball.bounds;
       if (min.y > height || min.x < 0 || min.x > width) {
         balls.delete(id);
         Composite.remove(engine.world, ball);
-        addBall();
       }
     }
   });
@@ -150,17 +142,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     }
   });
 
-  // Mouse interaction
-  const mouse = Mouse.create(render.canvas);
-  const mouseConstraint = MouseConstraint.create(engine, {
-    mouse,
-    constraint: {
-      stiffness: 0.2,
-      render: { visible: false },
-    },
+  // Click to drop ball
+  canvas.addEventListener("click", (e) => {
+    addBall(e.clientX);
   });
-  Composite.add(engine.world, mouseConstraint);
-  render.mouse = mouse;
 
   // Start
   Render.run(render);
