@@ -509,7 +509,8 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   Events.on(engine, "afterUpdate", () => {
     for (const [id, ball] of balls) {
       const { min } = ball.bounds;
-      if (min.y > height || min.x < 0 || min.x > width) {
+      const outX = !getState().hasBumpers && (min.x < 0 || min.x > width);
+      if (min.y > height || outX) {
         balls.delete(id);
         Composite.remove(engine.world, ball);
       }
