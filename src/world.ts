@@ -245,6 +245,13 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
     title.textContent = t("shop");
   });
 
+  // Visibility system: items can declare unlock conditions
+  const conditionalRows: { row: HTMLElement; visible: () => boolean }[] = [];
+
+  function registerRow(row: HTMLElement, visible?: () => boolean): void {
+    if (visible) conditionalRows.push({ row, visible });
+  }
+
   // Max balls upgrade
   const maxBallsRow = document.createElement("div");
   maxBallsRow.className = "shop-item";
@@ -542,16 +549,6 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
   zigzagRow.appendChild(zigzagBtn);
   panel.appendChild(zigzagRow);
 
-  // Traits section
-  const traitsDivider = document.createElement("h3");
-  traitsDivider.className = "shop-title";
-  traitsDivider.textContent = t("traits");
-  panel.appendChild(traitsDivider);
-
-  onLocaleChange(() => {
-    traitsDivider.textContent = t("traits");
-  });
-
   // Traits unlock (one-time)
   const traitsUnlockRow = document.createElement("div");
   traitsUnlockRow.className = "shop-item";
@@ -612,6 +609,7 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
     row.appendChild(label);
     row.appendChild(btn);
     panel.appendChild(row);
+    registerRow(row, () => getState().hasSpecialBalls);
   }
 
   // Update labels on state change
@@ -701,11 +699,10 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
     } else {
       traitsUnlockLabel.textContent = `${t("traits")}: ${t("off")}`;
       traitsUnlockBtn.textContent = `${t("unlock")} (${traitsUnlockCost})`;
-      for (let i = 0; i < traitDefs.length; i++) {
-        traitLabels[i].textContent = `${t(traitDefs[i].labelKey)}: --`;
-        traitBtns[i].textContent = "--";
-        traitBtns[i].disabled = true;
-      }
+    }
+    // Apply visibility conditions
+    for (const item of conditionalRows) {
+      item.row.hidden = !item.visible();
     }
   };
   onChange(refreshLabels);
