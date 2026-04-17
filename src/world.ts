@@ -34,6 +34,7 @@ import {
   TRAIT_CHANCE_PER_LEVEL,
   costOf,
   getLevel,
+  revealAtOf,
 } from "./economy";
 
 const { Engine, Render, Runner, Body, Bodies, Composite, Events } = Matter;
@@ -304,6 +305,7 @@ function createShopMenu(
   maxBallsRow.appendChild(maxBallsLabel);
   maxBallsRow.appendChild(maxBallsBtn);
   panel.appendChild(maxBallsRow);
+  registerRow(maxBallsRow, () => getState().peakCoins >= revealAtOf("maxBalls"));
 
   // Restitution upgrade
   const restitutionRow = document.createElement("div");
@@ -330,6 +332,7 @@ function createShopMenu(
   restitutionRow.appendChild(restitutionLabel);
   restitutionRow.appendChild(restitutionBtn);
   panel.appendChild(restitutionRow);
+  registerRow(restitutionRow, () => getState().peakCoins >= revealAtOf("restitution"));
 
   // Auto drop upgrade
   const autoDropRow = document.createElement("div");
@@ -367,6 +370,7 @@ function createShopMenu(
   autoDropRow.appendChild(autoDropLabel);
   autoDropRow.appendChild(autoDropBtn);
   panel.appendChild(autoDropRow);
+  registerRow(autoDropRow, () => getState().peakCoins >= revealAtOf("autoDrop"));
 
   // Resume auto drop from saved state
   const savedState = getState();
@@ -400,6 +404,7 @@ function createShopMenu(
   multiplierRow.appendChild(multiplierLabel);
   multiplierRow.appendChild(multiplierBtn);
   panel.appendChild(multiplierRow);
+  registerRow(multiplierRow, () => getState().peakCoins >= revealAtOf("bounceMultiplier"));
 
   // Critical chance upgrade
   const criticalRow = document.createElement("div");
@@ -430,6 +435,7 @@ function createShopMenu(
   criticalRow.appendChild(criticalLabel);
   criticalRow.appendChild(criticalBtn);
   panel.appendChild(criticalRow);
+  registerRow(criticalRow, () => getState().peakCoins >= revealAtOf("critical"));
 
   // Multi drop upgrade
   const multiDropRow = document.createElement("div");
@@ -456,6 +462,7 @@ function createShopMenu(
   multiDropRow.appendChild(multiDropLabel);
   multiDropRow.appendChild(multiDropBtn);
   panel.appendChild(multiDropRow);
+  registerRow(multiDropRow, () => getState().peakCoins >= revealAtOf("multiDrop"));
 
   // Expand rows upgrade
   const expandRowsRow = document.createElement("div");
@@ -482,6 +489,7 @@ function createShopMenu(
   expandRowsRow.appendChild(expandRowsLabel);
   expandRowsRow.appendChild(expandRowsBtn);
   panel.appendChild(expandRowsRow);
+  registerRow(expandRowsRow, () => getState().peakCoins >= revealAtOf("expandRows"));
 
   // Expand columns upgrade
   const expandColsRow = document.createElement("div");
@@ -508,6 +516,7 @@ function createShopMenu(
   expandColsRow.appendChild(expandColsLabel);
   expandColsRow.appendChild(expandColsBtn);
   panel.appendChild(expandColsRow);
+  registerRow(expandColsRow, () => getState().peakCoins >= revealAtOf("expandCols"));
 
   // Bumpers upgrade (one-time purchase)
   const bumperRow = document.createElement("div");
@@ -534,6 +543,7 @@ function createShopMenu(
   bumperRow.appendChild(bumperLabel);
   bumperRow.appendChild(bumperBtn);
   panel.appendChild(bumperRow);
+  registerRow(bumperRow, () => getState().peakCoins >= revealAtOf("bumpers"));
 
   // Zigzag upgrade (one-time purchase)
   const zigzagRow = document.createElement("div");
@@ -560,6 +570,7 @@ function createShopMenu(
   zigzagRow.appendChild(zigzagLabel);
   zigzagRow.appendChild(zigzagBtn);
   panel.appendChild(zigzagRow);
+  registerRow(zigzagRow, () => getState().peakCoins >= revealAtOf("zigzag"));
 
   // Traits unlock (one-time)
   const traitsUnlockRow = document.createElement("div");
@@ -585,6 +596,7 @@ function createShopMenu(
   traitsUnlockRow.appendChild(traitsUnlockLabel);
   traitsUnlockRow.appendChild(traitsUnlockBtn);
   panel.appendChild(traitsUnlockRow);
+  registerRow(traitsUnlockRow, () => getState().peakCoins >= revealAtOf("traitsUnlock"));
 
   // Individual trait items
   type TraitKey = "big" | "premium" | "critical" | "life" | "split";

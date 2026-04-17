@@ -6,6 +6,9 @@ const SETTINGS_KEY = "ball-drop-settings";
 export interface SaveData {
   locale: Locale;
   collisionCount: number;
+  // Monotonically-tracked max of collisionCount ever observed this save.
+  // Drives shop reveal thresholds so items stay visible after purchase.
+  peakCoins: number;
   maxBalls: number;
   ballRestitution: number;
   autoDropInterval: number;
@@ -42,7 +45,8 @@ export interface SaveData {
 
 export const defaults: SaveData = {
   locale: "en",
-  collisionCount: 100_000_000,
+  collisionCount: 0,
+  peakCoins: 0,
   maxBalls: 1,
   ballRestitution: 0.9,
   autoDropInterval: 0,
@@ -87,6 +91,9 @@ export function getState(): Readonly<SaveData> {
 
 export function updateState(patch: Partial<SaveData>): void {
   Object.assign(current, patch);
+  if (current.collisionCount > current.peakCoins) {
+    current.peakCoins = current.collisionCount;
+  }
   for (const fn of listeners) fn();
 }
 

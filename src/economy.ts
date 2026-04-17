@@ -65,6 +65,11 @@ export interface UpgradeDef {
   baseCost: number;
   costGrowth: number;
   maxLevel: number;
+  // Peak-coin threshold that must be crossed before the row is revealed in
+  // the shop. Once revealed, stays revealed. Defaults to baseCost × 0.1 via
+  // revealAtOf(), so expensive late-game items are hidden until the player
+  // has accumulated enough to see the goal as achievable.
+  revealAt?: number;
 }
 
 // Single source of truth for pricing. Per-upgrade growth rates are tuned so
@@ -101,6 +106,11 @@ export function costOf(id: UpgradeId, level: number): number {
 
 export function isMaxed(id: UpgradeId, level: number): boolean {
   return level >= UPGRADE_DEFS[id].maxLevel;
+}
+
+export function revealAtOf(id: UpgradeId): number {
+  const def = UPGRADE_DEFS[id];
+  return def.revealAt ?? def.baseCost * 0.1;
 }
 
 export function getLevel(state: Readonly<SaveData>, id: UpgradeId): number {
