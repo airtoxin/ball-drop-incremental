@@ -79,7 +79,7 @@ export interface UpgradeDef {
 // and the end-game collapses to a runaway. Geometric-income upgrades like
 // bounceMultiplier (≈2.08×/lvl at hits=15) need the steepest curves.
 export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
-  maxBalls: { baseCost: 50, costGrowth: 1.5, maxLevel: MAX_BALLS_MAX_LEVEL, revealAt: 0 },
+  maxBalls: { baseCost: 50, costGrowth: 1.5, maxLevel: MAX_BALLS_MAX_LEVEL },
   restitution: { baseCost: 500, costGrowth: 1.4, maxLevel: RESTITUTION_MAX_LEVEL },
   autoDrop: { baseCost: 1000, costGrowth: 1.6, maxLevel: AUTO_DROP_MAX_LEVEL },
   bounceMultiplier: { baseCost: 30_000, costGrowth: 2.35, maxLevel: MULTIPLIER_MAX_LEVEL },
@@ -110,7 +110,11 @@ export function isMaxed(id: UpgradeId, level: number): boolean {
 
 export function revealAtOf(id: UpgradeId): number {
   const def = UPGRADE_DEFS[id];
-  return def.revealAt ?? def.baseCost * 0.1;
+  if (def.revealAt != null) return def.revealAt;
+  // 3-digit (< 1000) starting costs are always visible — the numbers are
+  // small enough that showing them from game start isn't intimidating.
+  if (def.baseCost < 1000) return 0;
+  return def.baseCost * 0.1;
 }
 
 export function getLevel(state: Readonly<SaveData>, id: UpgradeId): number {
