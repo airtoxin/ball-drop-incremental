@@ -87,11 +87,11 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   maxBalls: { baseCost: 50, costGrowth: 1.5, maxLevel: MAX_BALLS_MAX_LEVEL },
   restitution: { baseCost: 500, costGrowth: 1.4, maxLevel: RESTITUTION_MAX_LEVEL },
   autoDrop: {
-    baseCost: 1000,
-    costGrowth: 1.6,
+    baseCost: 800,
+    costGrowth: 1.35,
     maxLevel: AUTO_DROP_MAX_LEVEL,
     revealAt: 0,
-    introCosts: [100, 300],
+    introCosts: [100, 300, 600],
   },
   bounceMultiplier: { baseCost: 30_000, costGrowth: 2.35, maxLevel: MULTIPLIER_MAX_LEVEL },
   critical: {
