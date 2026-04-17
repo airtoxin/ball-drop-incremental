@@ -1,6 +1,14 @@
 import Matter from "matter-js";
 import { play, getDuration, setKickVolume, setHihatVolume, setSynthVolume } from "./synth";
-import { getState, updateState, updateUpgrades, updateSpecialBalls, updateVolume, onChange, disableSave } from "./state";
+import {
+  getState,
+  updateState,
+  updateUpgrades,
+  updateSpecialBalls,
+  updateVolume,
+  onChange,
+  disableSave,
+} from "./state";
 import { t, getLocale, setLocale, onLocaleChange } from "./i18n";
 import type { Locale } from "./i18n";
 
@@ -14,12 +22,21 @@ const WALL_COLOR = "#4a4a6a";
 const FLASH_COLOR = "#ffffff";
 const FLASH_DURATION = 150;
 
-function createObstacles(width: number, height: number, zigzag: boolean, expandRows: number, expandCols: number): Matter.Body[] {
+function createObstacles(
+  width: number,
+  height: number,
+  zigzag: boolean,
+  expandRows: number,
+  expandCols: number,
+): Matter.Body[] {
   const bodies: Matter.Body[] = [];
   const cols = Math.ceil(width / GRID_SIZE);
   const rows = Math.ceil(height / GRID_SIZE);
   const centerCol = Math.floor(cols / 2);
   const centerRow = Math.floor(rows / 2);
+  // Recenter grid so the obstacle cluster is symmetric around the play area.
+  const gridShiftX = width / 2 - (centerCol * GRID_SIZE + GRID_SIZE / 2);
+  const gridShiftY = height / 2 - (centerRow * GRID_SIZE + GRID_SIZE / 2);
   // Start with 3x3, expand by 2 per level
   const halfCols = 1 + expandCols;
   const halfRows = 1 + expandRows;
@@ -31,8 +48,8 @@ function createObstacles(width: number, height: number, zigzag: boolean, expandR
       if (gx < centerCol - halfCols || gx > centerCol + halfCols + (zigzagRow ? 1 : 0)) continue;
       if (gy < centerRow - halfRows || gy > centerRow + halfRows) continue;
       const offset = zigzagRow ? -GRID_SIZE / 2 : 0;
-      const x = gx * GRID_SIZE + GRID_SIZE / 2 + offset;
-      const y = gy * GRID_SIZE + GRID_SIZE / 2;
+      const x = gx * GRID_SIZE + GRID_SIZE / 2 + offset + gridShiftX;
+      const y = gy * GRID_SIZE + GRID_SIZE / 2 + gridShiftY;
       const angle = -Math.PI / 3 + (Math.random() * Math.PI) / 3;
       const opts: Matter.IChamferableBodyDefinition = {
         isStatic: true,
@@ -65,10 +82,10 @@ const TRAIT_CHANCE_PER_LEVEL = 0.1;
 const BIG_RADIUS_MULT = 2;
 
 const TRAIT_COLORS: Record<BallTrait, [number, number, number]> = {
-  big: [204, 204, 204],       // same gray, size is the indicator
-  premium: [255, 215, 0],     // gold
-  critical: [255, 80, 80],    // red
-  life: [80, 255, 80],        // green
+  big: [204, 204, 204], // same gray, size is the indicator
+  premium: [255, 215, 0], // gold
+  critical: [255, 80, 80], // red
+  life: [80, 255, 80], // green
 };
 
 function rollTraits(): Set<BallTrait> {
@@ -86,12 +103,16 @@ function rollTraits(): Set<BallTrait> {
 }
 
 function traitColor(traits: Set<BallTrait>): string {
-  const colorTraits = (["premium", "critical", "life"] as BallTrait[]).filter(t => traits.has(t));
+  const colorTraits = (["premium", "critical", "life"] as BallTrait[]).filter((t) => traits.has(t));
   if (colorTraits.length === 0) return "#cccccc";
-  let r = 0, g = 0, b = 0;
+  let r = 0,
+    g = 0,
+    b = 0;
   for (const t of colorTraits) {
     const [cr, cg, cb] = TRAIT_COLORS[t];
-    r += cr; g += cg; b += cb;
+    r += cr;
+    g += cg;
+    b += cb;
   }
   r = Math.round(r / colorTraits.length);
   g = Math.round(g / colorTraits.length);
@@ -118,7 +139,11 @@ function createSettingsMenu(container: HTMLElement, onVolumeChange: () => void):
   menu.hidden = true;
 
   const state = getState();
-  type SliderDef = { labelKey: "kick" | "hihat" | "synth"; key: keyof typeof state.volume; setFn: (db: number) => void };
+  type SliderDef = {
+    labelKey: "kick" | "hihat" | "synth";
+    key: keyof typeof state.volume;
+    setFn: (db: number) => void;
+  };
   const sliders: SliderDef[] = [
     { labelKey: "kick", key: "kick", setFn: setKickVolume },
     { labelKey: "hihat", key: "hihat", setFn: setHihatVolume },
@@ -160,7 +185,10 @@ function createSettingsMenu(container: HTMLElement, onVolumeChange: () => void):
 
   const langSelect = document.createElement("select");
   langSelect.className = "lang-select";
-  for (const [value, label] of [["en", "English"], ["ja", "日本語"]] as const) {
+  for (const [value, label] of [
+    ["en", "English"],
+    ["ja", "日本語"],
+  ] as const) {
     const opt = document.createElement("option");
     opt.value = value;
     opt.textContent = label;
@@ -223,11 +251,24 @@ function createBumpers(width: number, height: number): Matter.Body[] {
   const VISIBLE_EDGE = 5;
   return [
     Bodies.rectangle(VISIBLE_EDGE - BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
-    Bodies.rectangle(width - VISIBLE_EDGE + BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
+    Bodies.rectangle(
+      width - VISIBLE_EDGE + BUMPER_WIDTH / 2,
+      height / 2,
+      BUMPER_WIDTH,
+      height,
+      bumperOpts,
+    ),
   ];
 }
 
-function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBall: () => void, onAddBumpers: () => void, onZigzag: () => void, onRebuildObstacles: () => void): void {
+function createShopMenu(
+  container: HTMLElement,
+  counterEl: HTMLElement,
+  onAddBall: () => void,
+  onAddBumpers: () => void,
+  onZigzag: () => void,
+  onRebuildObstacles: () => void,
+): void {
   const btn = document.createElement("button");
   btn.id = "hamburger-btn";
   btn.innerHTML = "&#9776;";
@@ -579,7 +620,11 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
 
   // Individual trait items
   type TraitKey = "big" | "premium" | "critical" | "life";
-  const traitDefs: { key: TraitKey; labelKey: "traitBig" | "traitPremium" | "traitCritical" | "traitLife"; cost: number }[] = [
+  const traitDefs: {
+    key: TraitKey;
+    labelKey: "traitBig" | "traitPremium" | "traitCritical" | "traitLife";
+    cost: number;
+  }[] = [
     { key: "big", labelKey: "traitBig", cost: 500 },
     { key: "premium", labelKey: "traitPremium", cost: 500 },
     { key: "critical", labelKey: "traitCritical", cost: 500 },
@@ -622,9 +667,8 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
     restitutionLabel.textContent = `${t("restitution")}: ${s.ballRestitution.toFixed(2)}`;
     if (s.autoDropInterval > 0) {
       autoDropLabel.textContent = `${t("autoDrop")}: ${(s.autoDropInterval / 1000).toFixed(1)}s`;
-      autoDropBtn.textContent = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL
-        ? t("max")
-        : `-1s (${autoDropCost})`;
+      autoDropBtn.textContent =
+        s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL ? t("max") : `-1s (${autoDropCost})`;
       autoDropBtn.disabled = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL;
     } else {
       autoDropLabel.textContent = `${t("autoDrop")}: ${t("off")}`;
@@ -722,7 +766,13 @@ function createShopMenu(container: HTMLElement, counterEl: HTMLElement, onAddBal
   });
 }
 
-function showFloatText(container: HTMLElement, x: number, y: number, amount: number, critical: boolean): void {
+function showFloatText(
+  container: HTMLElement,
+  x: number,
+  y: number,
+  amount: number,
+  critical: boolean,
+): void {
   const el = document.createElement("div");
   el.className = critical ? "float-text float-text-critical" : "float-text";
   el.textContent = critical ? `+${amount}!` : `+${amount}`;
@@ -779,7 +829,13 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   });
 
   // Static obstacles
-  let obstacles = createObstacles(width, height, getState().hasZigzag, getState().expandRows, getState().expandCols);
+  let obstacles = createObstacles(
+    width,
+    height,
+    getState().hasZigzag,
+    getState().expandRows,
+    getState().expandCols,
+  );
   Composite.add(engine.world, obstacles);
 
   // Track active balls and their metadata
@@ -908,9 +964,16 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     Composite.add(engine.world, obstacles);
   }
 
-  createShopMenu(container, counterEl, () => {
-    dropBalls(Math.random() * width, true);
-  }, addBumpers, rebuildObstacles, rebuildObstacles);
+  createShopMenu(
+    container,
+    counterEl,
+    () => {
+      dropBalls(Math.random() * width, true);
+    },
+    addBumpers,
+    rebuildObstacles,
+    rebuildObstacles,
+  );
 
   // Centralized volume application — respects mute flag
   function applyVolumes(): void {
