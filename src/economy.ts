@@ -70,6 +70,11 @@ export interface UpgradeDef {
   // revealAtOf(), so expensive late-game items are hidden until the player
   // has accumulated enough to see the goal as achievable.
   revealAt?: number;
+  // Explicit prices for the first few levels that override the baseCost ×
+  // growth^level formula. Lets an upgrade feel like an early-game choice
+  // without lowering its end-game ceiling. Level N ≥ introCosts.length
+  // falls through to the normal geometric formula.
+  introCosts?: number[];
 }
 
 // Single source of truth for pricing. Per-upgrade growth rates are tuned so
@@ -81,12 +86,42 @@ export interface UpgradeDef {
 export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   maxBalls: { baseCost: 50, costGrowth: 1.5, maxLevel: MAX_BALLS_MAX_LEVEL },
   restitution: { baseCost: 500, costGrowth: 1.4, maxLevel: RESTITUTION_MAX_LEVEL },
-  autoDrop: { baseCost: 1000, costGrowth: 1.6, maxLevel: AUTO_DROP_MAX_LEVEL },
+  autoDrop: {
+    baseCost: 1000,
+    costGrowth: 1.6,
+    maxLevel: AUTO_DROP_MAX_LEVEL,
+    revealAt: 0,
+    introCosts: [100, 300],
+  },
   bounceMultiplier: { baseCost: 30_000, costGrowth: 2.35, maxLevel: MULTIPLIER_MAX_LEVEL },
-  critical: { baseCost: 2000, costGrowth: 1.6, maxLevel: CRITICAL_MAX_LEVEL },
-  multiDrop: { baseCost: 1500, costGrowth: 1.45, maxLevel: MULTI_DROP_MAX_LEVEL },
-  expandRows: { baseCost: 2000, costGrowth: 15, maxLevel: EXPAND_ROWS_MAX },
-  expandCols: { baseCost: 2500, costGrowth: 5, maxLevel: EXPAND_COLS_MAX },
+  critical: {
+    baseCost: 2000,
+    costGrowth: 1.6,
+    maxLevel: CRITICAL_MAX_LEVEL,
+    revealAt: 0,
+    introCosts: [300, 700],
+  },
+  multiDrop: {
+    baseCost: 1500,
+    costGrowth: 1.45,
+    maxLevel: MULTI_DROP_MAX_LEVEL,
+    revealAt: 0,
+    introCosts: [200, 500],
+  },
+  expandRows: {
+    baseCost: 2000,
+    costGrowth: 15,
+    maxLevel: EXPAND_ROWS_MAX,
+    revealAt: 0,
+    introCosts: [400],
+  },
+  expandCols: {
+    baseCost: 2500,
+    costGrowth: 5,
+    maxLevel: EXPAND_COLS_MAX,
+    revealAt: 0,
+    introCosts: [500, 1500],
+  },
   bumpers: { baseCost: 200_000, costGrowth: 1, maxLevel: 1 },
   zigzag: { baseCost: 5_000_000, costGrowth: 1, maxLevel: 1 },
   traitsUnlock: { baseCost: 2_000_000_000, costGrowth: 1, maxLevel: 1 },
@@ -101,6 +136,9 @@ export const ALL_UPGRADE_IDS: UpgradeId[] = Object.keys(UPGRADE_DEFS) as Upgrade
 
 export function costOf(id: UpgradeId, level: number): number {
   const def = UPGRADE_DEFS[id];
+  if (def.introCosts && level < def.introCosts.length) {
+    return def.introCosts[level];
+  }
   return Math.round(def.baseCost * Math.pow(def.costGrowth, level));
 }
 
