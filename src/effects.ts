@@ -16,6 +16,11 @@ export interface BallMeta {
   lives: number;
   splitAngle: number;
   isChild: boolean;
+  // Instrumentation: collision count accumulated over this ball's lifetime, and
+  // the throw (single player action) it belongs to. Split-spawned children
+  // inherit the parent's throwId so per-throw stats lump them together.
+  hits: number;
+  throwId: number;
 }
 
 // ---------- Trait overlay renderers ----------

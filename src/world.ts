@@ -878,13 +878,22 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   const balls = new Map<number, Matter.Body>();
   const ballMeta = new Map<number, BallMeta>();
 
+  // Instrumentation: record per-ball and per-throw hit counts so we can
+  // calibrate the simulator's `hits` parameter against real play. Exposed via
+  // window.__hits() below. Sample cap keeps memory bounded for long sessions.
+  const HIT_SAMPLES_CAP = 2000;
+  const perBallHits: number[] = [];
+  const perThrowHits: number[] = [];
+  let nextThrowId = 1;
+  const throwActive = new Map<number, { active: number; hits: number }>();
+
   function parentBallCount(): number {
     let c = 0;
     for (const meta of ballMeta.values()) if (!meta.isChild) c++;
     return c;
   }
 
-  function addBall(x: number, angleDeg = 0): void {
+  function addBall(x: number, throwId: number, angleDeg = 0): void {
     const traits = rollTraits();
     const ball = createBall(x, traits);
     balls.set(ball.id, ball);
@@ -894,7 +903,11 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       lives: traits.has("life") ? 1 : 0,
       splitAngle: Math.random() * Math.PI * 2,
       isChild: false,
+      hits: 0,
+      throwId,
     });
+    const tr = throwActive.get(throwId);
+    if (tr) tr.active++;
     if (angleDeg !== 0) {
       const rad = (angleDeg * Math.PI) / 180;
       Body.setVelocity(ball, { x: Math.sin(rad) * 5, y: Math.cos(rad) * 5 });
@@ -902,7 +915,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     Composite.add(engine.world, ball);
   }
 
-  function spawnChildBall(x: number, y: number, value: number): void {
+  function spawnChildBall(x: number, y: number, value: number, throwId: number): void {
     const ball = createBall(x, new Set());
     Body.setPosition(ball, { x, y });
     balls.set(ball.id, ball);
@@ -912,7 +925,11 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       lives: 0,
       splitAngle: 0,
       isChild: true,
+      hits: 0,
+      throwId,
     });
+    const tr = throwActive.get(throwId);
+    if (tr) tr.active++;
     Composite.add(engine.world, ball);
   }
 
@@ -932,6 +949,19 @@ export function createWorld(canvas: HTMLCanvasElement): void {
           Body.setPosition(ball, { x: ball.position.x, y: 0 });
           Body.setVelocity(ball, { x: 0, y: 0 });
         } else {
+          if (meta) {
+            perBallHits.push(meta.hits);
+            if (perBallHits.length > HIT_SAMPLES_CAP) perBallHits.shift();
+            const tr = throwActive.get(meta.throwId);
+            if (tr) {
+              tr.active--;
+              if (tr.active <= 0) {
+                perThrowHits.push(tr.hits);
+                if (perThrowHits.length > HIT_SAMPLES_CAP) perThrowHits.shift();
+                throwActive.delete(meta.throwId);
+              }
+            }
+          }
           balls.delete(id);
           ballMeta.delete(id);
           Composite.remove(engine.world, ball);
@@ -985,11 +1015,16 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         const amount = Math.floor(isCritical ? ballValue * 5 : ballValue);
         showFloatText(container, ball.position.x, ball.position.y, amount, isCritical);
         updateState({ collisionCount: s.collisionCount + amount });
+        if (meta) {
+          meta.hits++;
+          const tr = throwActive.get(meta.throwId);
+          if (tr) tr.hits++;
+        }
         // Grow ball value by bounce multiplier for next hit
         if (meta) meta.value = ballValue * s.bounceMultiplier;
         // Split trait: chance to spawn a plain child ball inheriting parent's value
         if (meta?.traits.has("split") && Math.random() < SPLIT_SPAWN_CHANCE) {
-          spawnChildBall(ball.position.x, ball.position.y, ballValue);
+          spawnChildBall(ball.position.x, ball.position.y, ballValue, meta.throwId);
           const r = ball.circleRadius ?? BALL_RADIUS;
           effectQueue.add(createSplitBurst(ball.position.x, ball.position.y, r));
         }
@@ -1001,11 +1036,15 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   // Drop multiple balls respecting max limit
   function dropBalls(baseX: number, spread: boolean, maxAngleDeg = 0): void {
     const s = getState();
+    const throwId = nextThrowId++;
+    throwActive.set(throwId, { active: 0, hits: 0 });
     for (let i = 0; i < s.multiDrop && parentBallCount() < s.maxBalls; i++) {
       const x = spread ? baseX + (i - (s.multiDrop - 1) / 2) * (BALL_RADIUS * 8) : baseX;
       const angleDeg = maxAngleDeg === 0 ? 0 : (Math.random() * 2 - 1) * maxAngleDeg;
-      addBall(x, angleDeg);
+      addBall(x, throwId, angleDeg);
     }
+    // If every spawn was blocked by the maxBalls cap, clean up the unused entry.
+    if ((throwActive.get(throwId)?.active ?? 0) === 0) throwActive.delete(throwId);
   }
 
   // Click to drop ball — convert screen coords to logical coords
@@ -1016,6 +1055,23 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       dropBalls(logicalX, true);
     }
   });
+
+  // Expose hit-count stats for simulator calibration. Call __hits() in the
+  // devtools console after some play to see per-ball / per-throw aggregates.
+  (window as unknown as { __hits?: () => unknown }).__hits = () => {
+    const summarize = (arr: number[]): string => {
+      if (arr.length === 0) return "no samples";
+      const sorted = [...arr].sort((a, b) => a - b);
+      const pick = (q: number): number =>
+        sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))];
+      const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+      return `n=${arr.length} mean=${mean.toFixed(2)} p10=${pick(0.1)} p50=${pick(0.5)} p90=${pick(0.9)} max=${sorted[sorted.length - 1]}`;
+    };
+    const out = { perBall: summarize(perBallHits), perThrow: summarize(perThrowHits) };
+    console.log(`per-ball  hits: ${out.perBall}`);
+    console.log(`per-throw hits: ${out.perThrow}`);
+    return out;
+  };
 
   // Start
   Render.run(render);
