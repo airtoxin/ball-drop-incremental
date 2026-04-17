@@ -93,7 +93,7 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
     revealAt: 0,
     introCosts: [100, 300, 600],
   },
-  bounceMultiplier: { baseCost: 30_000, costGrowth: 2.35, maxLevel: MULTIPLIER_MAX_LEVEL },
+  bounceMultiplier: { baseCost: 10_000, costGrowth: 1.9, maxLevel: MULTIPLIER_MAX_LEVEL },
   critical: {
     baseCost: 2000,
     costGrowth: 1.6,
@@ -122,14 +122,14 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
     revealAt: 0,
     introCosts: [200, 300, 500],
   },
-  bumpers: { baseCost: 200_000, costGrowth: 1, maxLevel: 1 },
-  zigzag: { baseCost: 5_000_000, costGrowth: 1, maxLevel: 1 },
-  traitsUnlock: { baseCost: 2_000_000_000, costGrowth: 1, maxLevel: 1 },
-  "trait:big": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:premium": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:critical": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:life": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:split": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
+  bumpers: { baseCost: 100_000, costGrowth: 1, maxLevel: 1 },
+  zigzag: { baseCost: 2_000_000, costGrowth: 1, maxLevel: 1 },
+  traitsUnlock: { baseCost: 100_000_000, costGrowth: 1, maxLevel: 1 },
+  "trait:big": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
+  "trait:premium": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
+  "trait:critical": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
+  "trait:life": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
+  "trait:split": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
 };
 
 export const ALL_UPGRADE_IDS: UpgradeId[] = Object.keys(UPGRADE_DEFS) as UpgradeId[];
@@ -273,15 +273,34 @@ export function applyPurchase(state: SaveData, id: UpgradeId): void {
 // simulator takes <1s.
 
 export interface IncomeParams {
-  // Average wall/obstacle hits per ball life, before falling off. Depends on
-  // layout, restitution, bumpers — calibrate against playtesting.
-  hitsPerBallLife: number;
   // Manual click rate, drops per second. 0 means "no manual play".
   manualDropsPerSec: number;
   // Average time (seconds) a parent ball spends in play before dying. Caps the
   // overall drop rate at maxBalls / ballLifetimeSec — i.e., you can't drop
   // faster than slots free up. Calibrate against playtesting; default ~5s.
   ballLifetimeSec: number;
+}
+
+// State-dependent estimate of average obstacle hits per single ball life.
+// Calibrated from in-game instrumentation across ablation presets at fixed
+// drop rate (autoDrop=1s, maxBalls=20). Additive contributions:
+//   - grid area: linear fit between 3×3 (0.78 hits) and 7×15 (5.45 hits)
+//   - zigzag: +2.17 (independent of grid in measured range)
+//   - bumpers: small additive bonus (weak signal at 3×3, assumed mild)
+//   - big trait: proportional to trait chance; bigger ball lingers longer
+// Restitution and life are intentionally not in this function — restitution
+// showed weak/negative signal at small grids, and life is captured by
+// `expectedLivesPerBall` as a separate multiplier.
+export function expectedHitsPerBallLife(state: Readonly<SaveData>): number {
+  const cols = 3 + state.expandCols * 2;
+  const rows = 3 + state.expandRows * 2;
+  const cells = rows * cols;
+  const gridHits = 0.78 + 0.0486 * (cells - 9);
+  const zigzagBonus = state.hasZigzag ? 2.17 : 0;
+  const bumpersBonus = state.hasBumpers ? 0.5 : 0;
+  const bigChance = Math.min(1, state.specialBalls.big * TRAIT_CHANCE_PER_LEVEL);
+  const bigBonus = bigChance * 1.5;
+  return Math.max(0.1, gridHits + zigzagBonus + bumpersBonus + bigBonus);
 }
 
 export function expectedStartValue(state: Readonly<SaveData>): number {
@@ -309,8 +328,8 @@ function geometricSum(v0: number, r: number, n: number): number {
   return (v0 * (Math.pow(r, n) - 1)) / (r - 1);
 }
 
-export function expectedScorePerBall(state: Readonly<SaveData>, params: IncomeParams): number {
-  const hits = params.hitsPerBallLife;
+export function expectedScorePerBall(state: Readonly<SaveData>): number {
+  const hits = expectedHitsPerBallLife(state);
   const bm = state.bounceMultiplier;
   const v0 = expectedStartValue(state);
   const baseSum = geometricSum(v0, bm, hits);
@@ -338,5 +357,5 @@ export function ballsPerSec(state: Readonly<SaveData>, params: IncomeParams): nu
 }
 
 export function incomePerSec(state: Readonly<SaveData>, params: IncomeParams): number {
-  return expectedScorePerBall(state, params) * ballsPerSec(state, params);
+  return expectedScorePerBall(state) * ballsPerSec(state, params);
 }

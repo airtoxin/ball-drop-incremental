@@ -14,7 +14,6 @@
 //   --epsilon F       exploration rate for epsilon-* strategies (default: 0.15)
 //   --runs N          number of independent runs (default: 20). 1 prints per-purchase log.
 //   --seed N          base seed (default: 1). Run k uses seed + k.
-//   --hits N          average hits per ball life (default: 15)
 //   --manual R        manual drops/sec (default: 0)
 //   --ball-lifetime S average ball lifetime in seconds (default: 5)
 //   --max-hours H     cap sim time (default: 2)
@@ -46,7 +45,6 @@ interface CliArgs {
   epsilon: number;
   runs: number;
   seed: number;
-  hits: number;
   manual: number;
   ballLifetime: number;
   maxHours: number;
@@ -61,7 +59,6 @@ function parseArgs(argv: string[]): CliArgs {
     epsilon: 0.15,
     runs: 20,
     seed: 1,
-    hits: 15,
     manual: 0,
     ballLifetime: 5,
     maxHours: 336, // 14 days — long enough to see completion under any reasonable tuning
@@ -87,10 +84,6 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--seed":
         out.seed = Number(next);
-        i++;
-        break;
-      case "--hits":
-        out.hits = Number(next);
         i++;
         break;
       case "--manual":
@@ -408,7 +401,7 @@ function stateSummary(state: Readonly<SaveData>): string {
 
 function printSingleRun(result: RunResult, args: CliArgs): void {
   console.log(
-    `# single-run: strategy=${args.strategy} eps=${args.epsilon} hits=${args.hits} manual=${args.manual}/s`,
+    `# single-run: strategy=${args.strategy} eps=${args.epsilon} manual=${args.manual}/s`,
   );
   console.log(`# time      | event                         | coins     | inc/s    | state`);
   for (const p of result.purchases) {
@@ -426,7 +419,7 @@ function printSingleRun(result: RunResult, args: CliArgs): void {
 
 function printAggregate(results: RunResult[], args: CliArgs): void {
   console.log(
-    `# aggregate: strategy=${args.strategy} eps=${args.epsilon} runs=${args.runs} hits=${args.hits} manual=${args.manual}/s max=${args.maxHours}h`,
+    `# aggregate: strategy=${args.strategy} eps=${args.epsilon} runs=${args.runs} manual=${args.manual}/s max=${args.maxHours}h`,
   );
   console.log(
     `# checkpoint | coins (p10/p50/p90)           | inc/s (p10/p50/p90)          | purchases (p10/p50/p90)`,
@@ -502,7 +495,6 @@ function main(): void {
     }
   }
   const params: IncomeParams = {
-    hitsPerBallLife: args.hits,
     manualDropsPerSec: args.manual,
     ballLifetimeSec: args.ballLifetime,
   };
