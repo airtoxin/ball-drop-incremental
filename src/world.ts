@@ -1051,8 +1051,8 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       const cols = 3 + getState().expandCols * 2 + 1;
       const rangeWidth = cols * GRID_SIZE;
       const minX = width / 2 - rangeWidth / 2;
-      // Random ±10° tilt avoids straight-through drops that miss every obstacle.
-      const angleDeg = (Math.random() * 2 - 1) * 10;
+      // Random ±30° tilt avoids straight-through drops that miss every obstacle.
+      const angleDeg = (Math.random() * 2 - 1) * 30;
       dropBalls(minX + Math.random() * rangeWidth, true, angleDeg);
     },
     addBumpers,
