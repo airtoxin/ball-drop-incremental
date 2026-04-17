@@ -80,13 +80,7 @@ interface BallMeta {
 
 const TRAIT_CHANCE_PER_LEVEL = 0.1;
 const BIG_RADIUS_MULT = 2;
-
-const TRAIT_COLORS: Record<BallTrait, [number, number, number]> = {
-  big: [204, 204, 204], // same gray, size is the indicator
-  premium: [255, 215, 0], // gold
-  critical: [255, 80, 80], // red
-  life: [80, 255, 80], // green
-};
+const BALL_COLOR = "#cccccc";
 
 function rollTraits(): Set<BallTrait> {
   const s = getState();
@@ -102,24 +96,6 @@ function rollTraits(): Set<BallTrait> {
   return traits;
 }
 
-function traitColor(traits: Set<BallTrait>): string {
-  const colorTraits = (["premium", "critical", "life"] as BallTrait[]).filter((t) => traits.has(t));
-  if (colorTraits.length === 0) return "#cccccc";
-  let r = 0,
-    g = 0,
-    b = 0;
-  for (const t of colorTraits) {
-    const [cr, cg, cb] = TRAIT_COLORS[t];
-    r += cr;
-    g += cg;
-    b += cb;
-  }
-  r = Math.round(r / colorTraits.length);
-  g = Math.round(g / colorTraits.length);
-  b = Math.round(b / colorTraits.length);
-  return `rgb(${r},${g},${b})`;
-}
-
 function createBall(x: number, traits: Set<BallTrait>): Matter.Body {
   const radius = traits.has("big") ? BALL_RADIUS * BIG_RADIUS_MULT : BALL_RADIUS;
   return Bodies.circle(x, 0, radius, {
@@ -128,9 +104,55 @@ function createBall(x: number, traits: Set<BallTrait>): Matter.Body {
     friction: 0,
     density: 1000,
     render: {
-      fillStyle: traitColor(traits),
+      fillStyle: BALL_COLOR,
     },
   });
+}
+
+function drawPremiumEffect(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  const auraR = r * 2.2;
+  const grad = ctx.createRadialGradient(x, y, r * 0.8, x, y, auraR);
+  grad.addColorStop(0, "rgba(255,215,0,0.55)");
+  grad.addColorStop(1, "rgba(255,215,0,0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, auraR, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCriticalEffect(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  const spikes = 10;
+  const baseR = r;
+  const tipR = r * 1.4;
+  const baseHalfAngle = (Math.PI / spikes) * 0.4;
+  ctx.fillStyle = "#ff5555";
+  for (let i = 0; i < spikes; i++) {
+    const a = (i / spikes) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a - baseHalfAngle) * baseR, y + Math.sin(a - baseHalfAngle) * baseR);
+    ctx.lineTo(x + Math.cos(a) * tipR, y + Math.sin(a) * tipR);
+    ctx.lineTo(x + Math.cos(a + baseHalfAngle) * baseR, y + Math.sin(a + baseHalfAngle) * baseR);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawLifeEffect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  lives: number,
+): void {
+  if (lives <= 0) return;
+  ctx.strokeStyle = "rgba(80,255,120,0.75)";
+  ctx.lineWidth = Math.max(1.5, r * 0.18);
+  for (let i = 0; i < lives; i++) {
+    const ringR = r * (1.3 + i * 0.35);
+    ctx.beginPath();
+    ctx.arc(x, y, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 }
 
 function createSettingsMenu(container: HTMLElement, onVolumeChange: () => void): HTMLElement {
@@ -872,6 +894,20 @@ export function createWorld(canvas: HTMLCanvasElement): void {
           Composite.remove(engine.world, ball);
         }
       }
+    }
+  });
+
+  // Trait effects overlay
+  Events.on(render, "afterRender", () => {
+    const ctx = render.context;
+    for (const [id, ball] of balls) {
+      const meta = ballMeta.get(id);
+      if (!meta || meta.traits.size === 0) continue;
+      const { x, y } = ball.position;
+      const r = ball.circleRadius ?? BALL_RADIUS;
+      if (meta.traits.has("premium")) drawPremiumEffect(ctx, x, y, r);
+      if (meta.traits.has("critical")) drawCriticalEffect(ctx, x, y, r);
+      if (meta.traits.has("life")) drawLifeEffect(ctx, x, y, r, meta.lives);
     }
   });
 
