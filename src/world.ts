@@ -1,5 +1,13 @@
 import Matter from "matter-js";
-import { play, getDuration, setKickVolume, setHihatVolume, setSynthVolume } from "./synth";
+import {
+  play,
+  getDuration,
+  setKickVolume,
+  setHihatVolume,
+  setSynthVolume,
+  setPurchaseVolume,
+  playPurchase,
+} from "./synth";
 import {
   getState,
   updateState,
@@ -317,6 +325,7 @@ function createShopMenu(
       updateState({ collisionCount: s.collisionCount - cost, maxBalls: s.maxBalls + 1 });
       updateUpgrades({ maxBalls: s.upgrades.maxBalls + 1 });
       counterEl.textContent = String(getState().collisionCount);
+      playPurchase();
     }
   });
 
@@ -344,6 +353,7 @@ function createShopMenu(
       });
       updateUpgrades({ restitution: s.upgrades.restitution + 1 });
       counterEl.textContent = String(getState().collisionCount);
+      playPurchase();
     }
   });
 
@@ -382,6 +392,7 @@ function createShopMenu(
       updateUpgrades({ autoDrop: newLevel });
       counterEl.textContent = String(getState().collisionCount);
       startAutoDrop(newInterval);
+      playPurchase();
     }
   });
 
@@ -416,6 +427,7 @@ function createShopMenu(
       });
       updateUpgrades({ bounceMultiplier: s.upgrades.bounceMultiplier + 1 });
       counterEl.textContent = String(getState().collisionCount);
+      playPurchase();
     }
   });
 
@@ -447,6 +459,7 @@ function createShopMenu(
       });
       updateUpgrades({ critical: s.upgrades.critical + 1 });
       counterEl.textContent = String(getState().collisionCount);
+      playPurchase();
     }
   });
 
@@ -474,6 +487,7 @@ function createShopMenu(
       });
       updateUpgrades({ multiDrop: s.upgrades.multiDrop + 1 });
       counterEl.textContent = String(getState().collisionCount);
+      playPurchase();
     }
   });
 
@@ -501,6 +515,7 @@ function createShopMenu(
       });
       counterEl.textContent = String(getState().collisionCount);
       onRebuildObstacles();
+      playPurchase();
     }
   });
 
@@ -528,6 +543,7 @@ function createShopMenu(
       });
       counterEl.textContent = String(getState().collisionCount);
       onRebuildObstacles();
+      playPurchase();
     }
   });
 
@@ -555,6 +571,7 @@ function createShopMenu(
       });
       counterEl.textContent = String(getState().collisionCount);
       onAddBumpers();
+      playPurchase();
     }
   });
 
@@ -582,6 +599,7 @@ function createShopMenu(
       });
       counterEl.textContent = String(getState().collisionCount);
       onZigzag();
+      playPurchase();
     }
   });
 
@@ -608,6 +626,7 @@ function createShopMenu(
         hasSpecialBalls: true,
       });
       counterEl.textContent = String(getState().collisionCount);
+      playPurchase();
     }
   });
 
@@ -651,6 +670,7 @@ function createShopMenu(
         updateState({ collisionCount: s.collisionCount - cost });
         updateSpecialBalls({ [def.key]: s.specialBalls[def.key] + 1 });
         counterEl.textContent = String(getState().collisionCount);
+        playPurchase();
       }
     });
 
@@ -1205,10 +1225,12 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       setKickVolume(-Infinity);
       setHihatVolume(-Infinity);
       setSynthVolume(-Infinity);
+      setPurchaseVolume(-Infinity);
     } else {
       setKickVolume(s.volume.kick <= -30 ? -Infinity : s.volume.kick);
       setHihatVolume(s.volume.hihat <= -30 ? -Infinity : s.volume.hihat);
       setSynthVolume(s.volume.synth <= -30 ? -Infinity : s.volume.synth);
+      setPurchaseVolume(-6);
     }
   }
 

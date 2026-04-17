@@ -61,6 +61,17 @@ const synth = new Tone.PolySynth(Tone.Synth, {
 const kick = new Tone.MembraneSynth({ volume: -4 }).connect(limiter);
 const hihat = new Tone.PluckSynth({ volume: -10 }).connect(limiter);
 
+const purchaseSynth = new Tone.PolySynth(Tone.Synth, {
+  volume: -6,
+  oscillator: { type: "triangle" },
+  envelope: {
+    attack: 0.001,
+    decay: 0.12,
+    sustain: 0,
+    release: 0.18,
+  },
+}).connect(limiter);
+
 function generateRandomNote(): string {
   const keys = chords[chordIndex];
   const key = keys[Math.floor(Math.random() * keys.length)];
@@ -96,6 +107,19 @@ export function setHihatVolume(db: number): void {
 
 export function setSynthVolume(db: number): void {
   synth.volume.value = db;
+}
+
+export function setPurchaseVolume(db: number): void {
+  purchaseSynth.volume.value = db;
+}
+
+export function playPurchase(): void {
+  if (!initialized) return;
+  const now = Tone.now();
+  const notes = ["C6", "E6", "G6", "C7"];
+  notes.forEach((note, i) => {
+    purchaseSynth.triggerAttackRelease(note, "16n", now + i * 0.04, 0.7);
+  });
 }
 
 export async function initAudio(): Promise<void> {
