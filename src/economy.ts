@@ -27,6 +27,12 @@ export const SPLIT_SPAWN_CHANCE = 0.2;
 export const PREMIUM_START_VALUE = 3;
 export const DEFAULT_START_VALUE = 1;
 
+// Soft caps for the formerly uncapped stats — pins a real "fully completed"
+// endpoint so the tuning simulator can measure completion time.
+export const MAX_BALLS_MAX_LEVEL = 29; // maxBalls 1 → 30
+export const MULTI_DROP_MAX_LEVEL = 19; // multiDrop 1 → 20
+export const RESTITUTION_MAX_LEVEL = 10; // ballRestitution 0.9 → 1.4
+
 // Derived max levels.
 export const AUTO_DROP_MAX_LEVEL =
   (AUTO_DROP_BASE_INTERVAL - AUTO_DROP_MIN_INTERVAL) / AUTO_DROP_STEP + 1;
@@ -61,25 +67,29 @@ export interface UpgradeDef {
   maxLevel: number;
 }
 
-// Single source of truth for pricing. costGrowth=1 preserves current flat-cost
-// behavior; tune growth rates here and the simulator will reflect the change.
+// Single source of truth for pricing. Per-upgrade growth rates are tuned so
+// that median completion in the simulator lands around 3-7 days of play.
+// Rule-of-thumb: growth should exceed each upgrade's income-gain ratio per
+// level, otherwise the upgrade becomes more cost-effective as you level it
+// and the end-game collapses to a runaway. Geometric-income upgrades like
+// bounceMultiplier (≈2.08×/lvl at hits=15) need the steepest curves.
 export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
-  maxBalls: { baseCost: 100, costGrowth: 1, maxLevel: Infinity },
-  restitution: { baseCost: 200, costGrowth: 1, maxLevel: Infinity },
-  autoDrop: { baseCost: 300, costGrowth: 1, maxLevel: AUTO_DROP_MAX_LEVEL },
-  bounceMultiplier: { baseCost: 500, costGrowth: 1, maxLevel: MULTIPLIER_MAX_LEVEL },
-  critical: { baseCost: 400, costGrowth: 1, maxLevel: CRITICAL_MAX_LEVEL },
-  multiDrop: { baseCost: 400, costGrowth: 1, maxLevel: Infinity },
-  expandRows: { baseCost: 300, costGrowth: 1, maxLevel: EXPAND_ROWS_MAX },
-  expandCols: { baseCost: 300, costGrowth: 1, maxLevel: EXPAND_COLS_MAX },
-  bumpers: { baseCost: 600, costGrowth: 1, maxLevel: 1 },
-  zigzag: { baseCost: 800, costGrowth: 1, maxLevel: 1 },
-  traitsUnlock: { baseCost: 1000, costGrowth: 1, maxLevel: 1 },
-  "trait:big": { baseCost: 500, costGrowth: 1, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:premium": { baseCost: 500, costGrowth: 1, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:critical": { baseCost: 500, costGrowth: 1, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:life": { baseCost: 500, costGrowth: 1, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:split": { baseCost: 500, costGrowth: 1, maxLevel: TRAIT_MAX_LEVEL },
+  maxBalls: { baseCost: 200, costGrowth: 1.5, maxLevel: MAX_BALLS_MAX_LEVEL },
+  restitution: { baseCost: 500, costGrowth: 1.4, maxLevel: RESTITUTION_MAX_LEVEL },
+  autoDrop: { baseCost: 1000, costGrowth: 1.6, maxLevel: AUTO_DROP_MAX_LEVEL },
+  bounceMultiplier: { baseCost: 30_000, costGrowth: 2.35, maxLevel: MULTIPLIER_MAX_LEVEL },
+  critical: { baseCost: 2000, costGrowth: 1.6, maxLevel: CRITICAL_MAX_LEVEL },
+  multiDrop: { baseCost: 1500, costGrowth: 1.45, maxLevel: MULTI_DROP_MAX_LEVEL },
+  expandRows: { baseCost: 2000, costGrowth: 15, maxLevel: EXPAND_ROWS_MAX },
+  expandCols: { baseCost: 2500, costGrowth: 5, maxLevel: EXPAND_COLS_MAX },
+  bumpers: { baseCost: 200_000, costGrowth: 1, maxLevel: 1 },
+  zigzag: { baseCost: 5_000_000, costGrowth: 1, maxLevel: 1 },
+  traitsUnlock: { baseCost: 2_000_000_000, costGrowth: 1, maxLevel: 1 },
+  "trait:big": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
+  "trait:premium": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
+  "trait:critical": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
+  "trait:life": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
+  "trait:split": { baseCost: 10_000_000, costGrowth: 2.3, maxLevel: TRAIT_MAX_LEVEL },
 };
 
 export const ALL_UPGRADE_IDS: UpgradeId[] = Object.keys(UPGRADE_DEFS) as UpgradeId[];

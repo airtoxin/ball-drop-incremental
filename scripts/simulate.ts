@@ -23,6 +23,7 @@
 
 import {
   ALL_UPGRADE_IDS,
+  UPGRADE_DEFS,
   applyPurchase,
   costOf,
   getLevel,
@@ -51,6 +52,7 @@ interface CliArgs {
   maxHours: number;
   dt: number;
   startCoins: number;
+  costGrowth: number | null;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -62,9 +64,10 @@ function parseArgs(argv: string[]): CliArgs {
     hits: 15,
     manual: 0,
     ballLifetime: 5,
-    maxHours: 2,
+    maxHours: 336, // 14 days — long enough to see completion under any reasonable tuning
     dt: 1,
     startCoins: 0,
+    costGrowth: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -108,6 +111,10 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--start-coins":
         out.startCoins = Number(next);
+        i++;
+        break;
+      case "--cost-growth":
+        out.costGrowth = Number(next);
         i++;
         break;
     }
@@ -157,22 +164,28 @@ const greedyCheapest: Strategy = (state) => {
   return best?.id ?? null;
 };
 
-// Maximize Δincome per cost. Layout / one-shot upgrades that don't move the
-// analytic income curve score 0 and are deprioritized — exploration (epsilon)
-// is what lets them still get bought.
+// Maximize Δincome per cost, with patience. Evaluates ROI over ALL non-maxed
+// upgrades (not just affordable), then only buys if the global best is
+// affordable — otherwise wait. This prevents the "drain on zero-delta cheap
+// items" trap where cheap layout upgrades eat coins while a big-ROI upgrade
+// sits just out of reach.
 const bangPerBuck: Strategy = (state, params) => {
   const baseInc = incomePerSec(state, params);
-  let best: { id: UpgradeId; score: number } | null = null;
-  for (const id of affordable(state)) {
-    const cost = costOf(id, getLevel(state, id));
+  let best: { id: UpgradeId; score: number; cost: number } | null = null;
+  for (const id of ALL_UPGRADE_IDS) {
+    const level = getLevel(state, id);
+    if (isMaxed(id, level)) continue;
+    const cost = costOf(id, level);
     const next = structuredClone(state) as SaveData;
     applyPurchase(next, id);
     const delta = incomePerSec(next, params) - baseInc;
-    // Include a tiny cost-ratio tiebreaker so zero-delta upgrades still order by cheapness.
+    // Zero-delta upgrades fall back to a cheapness-weighted tiebreaker so
+    // they still get some ordering, but will never beat any positive-delta pick.
     const score = delta / Math.max(1, cost) + 1e-9 / cost;
-    if (best == null || score > best.score) best = { id, score };
+    if (best == null || score > best.score) best = { id, score, cost };
   }
-  return best?.id ?? null;
+  if (best == null) return null;
+  return best.cost <= state.collisionCount ? best.id : null;
 };
 
 function epsilonWrap(inner: Strategy, epsilon: number): Strategy {
@@ -219,14 +232,36 @@ interface RunResult {
   checkpoints: Checkpoint[];
   finalState: SaveData;
   stalled: boolean;
+  // First simulation time (seconds) at which every UpgradeId was maxed.
+  // Infinity if never reached within maxHours.
+  fullyMaxedAt: number;
 }
 
-const CHECKPOINT_SECS = [60, 300, 900, 1800, 3600, 7200, 14400];
+const CHECKPOINT_SECS = [
+  300, // 5m
+  1800, // 30m
+  3600, // 1h
+  14400, // 4h
+  43200, // 12h
+  86400, // 1d
+  172800, // 2d
+  259200, // 3d
+  432000, // 5d
+  604800, // 7d
+  1209600, // 14d
+];
 
 function freshState(startCoins: number): SaveData {
   const s = structuredClone(defaults);
   s.collisionCount = startCoins;
   return s;
+}
+
+function allMaxed(state: Readonly<SaveData>): boolean {
+  for (const id of ALL_UPGRADE_IDS) {
+    if (!isMaxed(id, getLevel(state, id))) return false;
+  }
+  return true;
 }
 
 function runSim(
@@ -242,6 +277,7 @@ function runSim(
   let cpIdx = 0;
   let t = 0;
   let stalled = false;
+  let fullyMaxedAt = Infinity;
 
   const snapshot = (): void => {
     while (cpIdx < CHECKPOINT_SECS.length && CHECKPOINT_SECS[cpIdx] <= t) {
@@ -267,6 +303,11 @@ function runSim(
       applyPurchase(state, pick);
       purchases.push({ t, id: pick, cost, incAfter: incomePerSec(state, params) });
       bought = true;
+    }
+
+    if (fullyMaxedAt === Infinity && allMaxed(state)) {
+      fullyMaxedAt = t;
+      break;
     }
 
     const inc = incomePerSec(state, params);
@@ -312,12 +353,17 @@ function runSim(
     cpIdx++;
   }
 
-  return { finalT: t, purchases, checkpoints, finalState: state, stalled };
+  return { finalT: t, purchases, checkpoints, finalState: state, stalled, fullyMaxedAt };
 }
 
 // ---------- Output ----------
 
 function fmtTime(sec: number): string {
+  if (!Number.isFinite(sec)) return "  never  ";
+  if (sec >= 86400) {
+    const d = sec / 86400;
+    return `${d.toFixed(2)}d`;
+  }
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = Math.floor(sec % 60);
@@ -413,20 +459,48 @@ function printAggregate(results: RunResult[], args: CliArgs): void {
   // Stall rate + final-median upgrade mix.
   const stalled = results.filter((r) => r.stalled).length;
   console.log(`# stalled: ${stalled}/${results.length}`);
-  // Aggregate each upgrade's final level: median.
-  console.log(`# median final levels:`);
-  const medianLine: string[] = [];
+  // Time to reach fully-maxed state across all UpgradeIds.
+  const maxedAt = results.map((r) => r.fullyMaxedAt).sort((a, b) => a - b);
+  const completedCount = maxedAt.filter((v) => Number.isFinite(v)).length;
+  console.log(
+    `# fully-maxed: ${completedCount}/${results.length} runs; t (p10/p50/p90) = ${fmtTime(quantile(maxedAt, 0.1))} / ${fmtTime(quantile(maxedAt, 0.5))} / ${fmtTime(quantile(maxedAt, 0.9))}`,
+  );
+  // Per-upgrade: first-purchase time (when did it start?) and last-purchase time
+  // (when was it maxed, or last level bought). Helps identify upgrades that
+  // finish too early/late.
+  console.log(`# per-upgrade purchase window (median first → last, levels reached):`);
   for (const id of ALL_UPGRADE_IDS) {
-    const levels = results.map((r) => getLevel(r.finalState, id)).sort((a, b) => a - b);
-    medianLine.push(`${id}=${quantile(levels, 0.5).toFixed(0)}`);
+    const firsts: number[] = [];
+    const lasts: number[] = [];
+    const levels: number[] = [];
+    for (const r of results) {
+      const mine = r.purchases.filter((p) => p.id === id);
+      firsts.push(mine.length > 0 ? mine[0].t : Infinity);
+      lasts.push(mine.length > 0 ? mine[mine.length - 1].t : Infinity);
+      levels.push(getLevel(r.finalState, id));
+    }
+    firsts.sort((a, b) => a - b);
+    lasts.sort((a, b) => a - b);
+    levels.sort((a, b) => a - b);
+    const max = UPGRADE_DEFS[id].maxLevel;
+    const lvlMed = quantile(levels, 0.5).toFixed(0);
+    console.log(
+      `  ${id.padEnd(18)} ${fmtTime(quantile(firsts, 0.5)).padStart(10)} → ${fmtTime(quantile(lasts, 0.5)).padStart(10)}  lvl ${lvlMed}/${Number.isFinite(max) ? max : "∞"}`,
+    );
   }
-  console.log(`  ${medianLine.join(" ")}`);
 }
 
 // ---------- Entry ----------
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
+  if (args.costGrowth != null) {
+    // Blanket override for sweep experiments. Per-upgrade tuning is done by
+    // editing UPGRADE_DEFS directly in economy.ts.
+    for (const id of ALL_UPGRADE_IDS) {
+      UPGRADE_DEFS[id].costGrowth = args.costGrowth;
+    }
+  }
   const params: IncomeParams = {
     hitsPerBallLife: args.hits,
     manualDropsPerSec: args.manual,
