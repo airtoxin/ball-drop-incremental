@@ -216,6 +216,10 @@ export interface IncomeParams {
   hitsPerBallLife: number;
   // Manual click rate, drops per second. 0 means "no manual play".
   manualDropsPerSec: number;
+  // Average time (seconds) a parent ball spends in play before dying. Caps the
+  // overall drop rate at maxBalls / ballLifetimeSec — i.e., you can't drop
+  // faster than slots free up. Calibrate against playtesting; default ~5s.
+  ballLifetimeSec: number;
 }
 
 export function expectedStartValue(state: Readonly<SaveData>): number {
@@ -264,7 +268,11 @@ export function ballsPerSec(state: Readonly<SaveData>, params: IncomeParams): nu
   const autoPerSec =
     state.autoDropInterval > 0 ? state.multiDrop / (state.autoDropInterval / 1000) : 0;
   const manualPerSec = params.manualDropsPerSec * state.multiDrop;
-  return autoPerSec + manualPerSec;
+  const sourceRate = autoPerSec + manualPerSec;
+  // Parent balls occupy a slot for ballLifetimeSec; can't drop faster than
+  // slots free up. Split-spawned children don't count against the cap.
+  const slotCap = state.maxBalls / Math.max(0.1, params.ballLifetimeSec);
+  return Math.min(sourceRate, slotCap);
 }
 
 export function incomePerSec(state: Readonly<SaveData>, params: IncomeParams): number {
