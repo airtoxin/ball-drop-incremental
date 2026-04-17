@@ -1041,7 +1041,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     const throwId = nextThrowId++;
     throwActive.set(throwId, { active: 0, hits: 0 });
     for (let i = 0; i < s.multiDrop && parentBallCount() < s.maxBalls; i++) {
-      const x = spread ? baseX + (i - (s.multiDrop - 1) / 2) * (BALL_RADIUS * 8) : baseX;
+      // Expand center → left → right → left+1 → right+1 … so the first ball
+      // always lands at baseX and every added ball alternates sides.
+      const slot = i === 0 ? 0 : (i % 2 === 1 ? -1 : 1) * Math.ceil(i / 2);
+      const x = spread ? baseX + slot * (BALL_RADIUS * 8) : baseX;
       const angleDeg = maxAngleDeg === 0 ? 0 : (Math.random() * 2 - 1) * maxAngleDeg;
       addBall(x, throwId, angleDeg);
     }
@@ -1169,13 +1172,9 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     container,
     counterEl,
     () => {
-      // Drop within the current obstacle cluster width (+1 cell of margin)
-      // so auto-drop stays effective without buying column expansions.
-      const cols = 3 + getState().expandCols * 2 + 1;
-      const rangeWidth = cols * GRID_SIZE;
-      const minX = width / 2 - rangeWidth / 2;
-      // Per-ball ±30° tilt avoids straight-through drops that miss every obstacle.
-      dropBalls(minX + Math.random() * rangeWidth, true, 30);
+      // Fixed center drop — the ±10° per-ball tilt spreads the bounce
+      // pattern, and multi-drop expands center-out from baseX.
+      dropBalls(width / 2, true, 10);
     },
     addBumpers,
     rebuildObstacles,
