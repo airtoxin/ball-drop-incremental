@@ -795,7 +795,8 @@ function createShopMenu(
 
   container.appendChild(panel);
 
-  let open = false;
+  let open = true;
+  panel.classList.toggle("open", open);
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     open = !open;

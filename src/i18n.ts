@@ -68,7 +68,7 @@ const translations = {
 export type Locale = keyof typeof translations;
 export type TranslationKey = keyof (typeof translations)["en"];
 
-let currentLocale: Locale = "en";
+let currentLocale: Locale = "ja";
 
 const localeListeners = new Set<() => void>();
 

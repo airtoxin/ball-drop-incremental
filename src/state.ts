@@ -44,7 +44,7 @@ export interface SaveData {
 }
 
 export const defaults: SaveData = {
-  locale: "en",
+  locale: "ja",
   collisionCount: 0,
   peakCoins: 0,
   maxBalls: 1,
