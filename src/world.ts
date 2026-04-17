@@ -123,14 +123,20 @@ function drawPremiumEffect(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.fill();
 }
 
-function drawCriticalEffect(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+function drawCriticalEffect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  rotation: number,
+): void {
   const spikes = 10;
   const baseR = r;
   const tipR = r * 1.4;
   const baseHalfAngle = (Math.PI / spikes) * 0.4;
   ctx.fillStyle = "#ff5555";
   for (let i = 0; i < spikes; i++) {
-    const a = (i / spikes) * Math.PI * 2;
+    const a = (i / spikes) * Math.PI * 2 + rotation;
     ctx.beginPath();
     ctx.moveTo(x + Math.cos(a - baseHalfAngle) * baseR, y + Math.sin(a - baseHalfAngle) * baseR);
     ctx.lineTo(x + Math.cos(a) * tipR, y + Math.sin(a) * tipR);
@@ -960,9 +966,9 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       const { x, y } = ball.position;
       const r = ball.circleRadius ?? BALL_RADIUS;
       if (meta.traits.has("premium")) drawPremiumEffect(ctx, x, y, r);
-      if (meta.traits.has("critical")) drawCriticalEffect(ctx, x, y, r);
+      if (meta.traits.has("critical")) drawCriticalEffect(ctx, x, y, r, ball.angle);
       if (meta.traits.has("life")) drawLifeEffect(ctx, x, y, r, meta.lives);
-      if (meta.traits.has("split")) drawSplitEffect(ctx, x, y, r, meta.splitAngle);
+      if (meta.traits.has("split")) drawSplitEffect(ctx, x, y, r, meta.splitAngle + ball.angle);
     }
   });
 
