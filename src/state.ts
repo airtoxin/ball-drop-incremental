@@ -22,6 +22,7 @@ export interface SaveData {
     premium: number;
     critical: number;
     life: number;
+    split: number;
   };
   upgrades: {
     maxBalls: number;
@@ -58,6 +59,7 @@ const defaults: SaveData = {
     premium: 0,
     critical: 0,
     life: 0,
+    split: 0,
   },
   upgrades: {
     maxBalls: 0,
@@ -116,7 +118,10 @@ export function disableSave(): void {
 export function save(): void {
   if (saveDisabled) return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(current));
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ volume: current.volume, locale: current.locale, muted: current.muted }));
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({ volume: current.volume, locale: current.locale, muted: current.muted }),
+  );
 }
 
 export function load(): void {
@@ -124,7 +129,11 @@ export function load(): void {
   const settingsRaw = localStorage.getItem(SETTINGS_KEY);
   let settings: { volume?: Partial<SaveData["volume"]>; locale?: Locale; muted?: boolean } = {};
   if (settingsRaw) {
-    try { settings = JSON.parse(settingsRaw); } catch { /* ignore */ }
+    try {
+      settings = JSON.parse(settingsRaw);
+    } catch {
+      /* ignore */
+    }
   }
 
   const raw = localStorage.getItem(SAVE_KEY);

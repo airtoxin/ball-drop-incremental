@@ -70,23 +70,26 @@ function createObstacles(
   return bodies;
 }
 
-type BallTrait = "big" | "premium" | "critical" | "life";
+type BallTrait = "big" | "premium" | "critical" | "life" | "split";
 
 interface BallMeta {
   value: number;
   traits: Set<BallTrait>;
   lives: number;
+  splitAngle: number;
+  isChild: boolean;
 }
 
 const TRAIT_CHANCE_PER_LEVEL = 0.1;
 const BIG_RADIUS_MULT = 2;
 const BALL_COLOR = "#cccccc";
+const SPLIT_SPAWN_CHANCE = 0.2;
 
 function rollTraits(): Set<BallTrait> {
   const s = getState();
   if (!s.hasSpecialBalls) return new Set();
   const traits = new Set<BallTrait>();
-  const types: BallTrait[] = ["big", "premium", "critical", "life"];
+  const types: BallTrait[] = ["big", "premium", "critical", "life", "split"];
   for (const t of types) {
     const chance = s.specialBalls[t] * TRAIT_CHANCE_PER_LEVEL;
     if (chance > 0 && Math.random() < chance) {
@@ -135,6 +138,34 @@ function drawCriticalEffect(ctx: CanvasRenderingContext2D, x: number, y: number,
     ctx.closePath();
     ctx.fill();
   }
+}
+
+function drawSplitEffect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  angle: number,
+): void {
+  // Cleavage groove across the ball: two inward-pinching curves meeting at the middle.
+  const dx = Math.cos(angle);
+  const dy = Math.sin(angle);
+  const nx = -dy;
+  const ny = dx;
+  const ax = x - dx * r;
+  const ay = y - dy * r;
+  const bx = x + dx * r;
+  const by = y + dy * r;
+  const pinch = r * 0.18;
+  ctx.strokeStyle = "#333333";
+  ctx.lineWidth = Math.max(1.5, r * 0.22);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.quadraticCurveTo(x + nx * pinch, y + ny * pinch, bx, by);
+  ctx.moveTo(ax, ay);
+  ctx.quadraticCurveTo(x - nx * pinch, y - ny * pinch, bx, by);
+  ctx.stroke();
 }
 
 function drawLifeEffect(
@@ -641,16 +672,17 @@ function createShopMenu(
   panel.appendChild(traitsUnlockRow);
 
   // Individual trait items
-  type TraitKey = "big" | "premium" | "critical" | "life";
+  type TraitKey = "big" | "premium" | "critical" | "life" | "split";
   const traitDefs: {
     key: TraitKey;
-    labelKey: "traitBig" | "traitPremium" | "traitCritical" | "traitLife";
+    labelKey: "traitBig" | "traitPremium" | "traitCritical" | "traitLife" | "traitSplit";
     cost: number;
   }[] = [
     { key: "big", labelKey: "traitBig", cost: 500 },
     { key: "premium", labelKey: "traitPremium", cost: 500 },
     { key: "critical", labelKey: "traitCritical", cost: 500 },
     { key: "life", labelKey: "traitLife", cost: 500 },
+    { key: "split", labelKey: "traitSplit", cost: 500 },
   ];
 
   const traitLabels: HTMLElement[] = [];
@@ -864,6 +896,12 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   const balls = new Map<number, Matter.Body>();
   const ballMeta = new Map<number, BallMeta>();
 
+  function parentBallCount(): number {
+    let c = 0;
+    for (const meta of ballMeta.values()) if (!meta.isChild) c++;
+    return c;
+  }
+
   function addBall(x: number): void {
     const traits = rollTraits();
     const ball = createBall(x, traits);
@@ -872,6 +910,22 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       value: traits.has("premium") ? 3 : 1,
       traits,
       lives: traits.has("life") ? 1 : 0,
+      splitAngle: Math.random() * Math.PI * 2,
+      isChild: false,
+    });
+    Composite.add(engine.world, ball);
+  }
+
+  function spawnChildBall(x: number, y: number, value: number): void {
+    const ball = createBall(x, new Set());
+    Body.setPosition(ball, { x, y });
+    balls.set(ball.id, ball);
+    ballMeta.set(ball.id, {
+      value,
+      traits: new Set(),
+      lives: 0,
+      splitAngle: 0,
+      isChild: true,
     });
     Composite.add(engine.world, ball);
   }
@@ -908,6 +962,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       if (meta.traits.has("premium")) drawPremiumEffect(ctx, x, y, r);
       if (meta.traits.has("critical")) drawCriticalEffect(ctx, x, y, r);
       if (meta.traits.has("life")) drawLifeEffect(ctx, x, y, r, meta.lives);
+      if (meta.traits.has("split")) drawSplitEffect(ctx, x, y, r, meta.splitAngle);
     }
   });
 
@@ -951,6 +1006,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         updateState({ collisionCount: s.collisionCount + amount });
         // Grow ball value by bounce multiplier for next hit
         if (meta) meta.value = ballValue * s.bounceMultiplier;
+        // Split trait: chance to spawn a plain child ball inheriting parent's value
+        if (meta?.traits.has("split") && Math.random() < SPLIT_SPAWN_CHANCE) {
+          spawnChildBall(ball.position.x, ball.position.y, ballValue);
+        }
         counterEl.textContent = String(getState().collisionCount);
       }
     }
@@ -959,7 +1018,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   // Drop multiple balls respecting max limit
   function dropBalls(baseX: number, spread: boolean): void {
     const s = getState();
-    for (let i = 0; i < s.multiDrop && balls.size < s.maxBalls; i++) {
+    for (let i = 0; i < s.multiDrop && parentBallCount() < s.maxBalls; i++) {
       const x = spread ? baseX + (i - (s.multiDrop - 1) / 2) * (BALL_RADIUS * 8) : baseX;
       addBall(x);
     }
@@ -967,7 +1026,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
 
   // Click to drop ball — convert screen coords to logical coords
   canvas.addEventListener("click", (e) => {
-    if (balls.size < getState().maxBalls) {
+    if (parentBallCount() < getState().maxBalls) {
       const rect = canvas.getBoundingClientRect();
       const logicalX = ((e.clientX - rect.left) / rect.width) * width;
       dropBalls(logicalX, true);
