@@ -645,81 +645,122 @@ function createShopMenu(
   // Update labels on state change
   const refreshLabels = () => {
     const s = getState();
+    // Toggle affordability classes on buyable (non-disabled) buttons so the
+    // shop visually distinguishes what the player can act on right now.
+    const setAffordance = (btn: HTMLButtonElement, cost: number): void => {
+      if (btn.disabled) {
+        btn.classList.remove("affordable", "unaffordable");
+        return;
+      }
+      const ok = s.collisionCount >= cost;
+      btn.classList.toggle("affordable", ok);
+      btn.classList.toggle("unaffordable", !ok);
+    };
     maxBallsLabel.textContent = `${t("maxBalls")}: ${s.maxBalls}`;
-    maxBallsBtn.textContent = `+1 (${costOf("maxBalls", getLevel(s, "maxBalls"))})`;
+    const maxBallsCost = costOf("maxBalls", getLevel(s, "maxBalls"));
+    maxBallsBtn.textContent = `+1 (${maxBallsCost})`;
+    setAffordance(maxBallsBtn, maxBallsCost);
     restitutionLabel.textContent = `${t("restitution")}: ${s.ballRestitution.toFixed(2)}`;
-    restitutionBtn.textContent = `+0.05 (${costOf("restitution", getLevel(s, "restitution"))})`;
+    const restitutionCost = costOf("restitution", getLevel(s, "restitution"));
+    restitutionBtn.textContent = `+0.05 (${restitutionCost})`;
+    setAffordance(restitutionBtn, restitutionCost);
     if (s.autoDropInterval > 0) {
       autoDropLabel.textContent = `${t("autoDrop")}: ${(s.autoDropInterval / 1000).toFixed(1)}s`;
       if (s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL) {
         autoDropBtn.textContent = t("max");
         autoDropBtn.disabled = true;
+        setAffordance(autoDropBtn, 0);
       } else {
-        autoDropBtn.textContent = `-1s (${costOf("autoDrop", getLevel(s, "autoDrop"))})`;
+        const c = costOf("autoDrop", getLevel(s, "autoDrop"));
+        autoDropBtn.textContent = `-1s (${c})`;
         autoDropBtn.disabled = false;
+        setAffordance(autoDropBtn, c);
       }
     } else {
       autoDropLabel.textContent = `${t("autoDrop")}: ${t("off")}`;
-      autoDropBtn.textContent = `${t("on")} (${costOf("autoDrop", getLevel(s, "autoDrop"))})`;
+      const c = costOf("autoDrop", getLevel(s, "autoDrop"));
+      autoDropBtn.textContent = `${t("on")} (${c})`;
       autoDropBtn.disabled = false;
+      setAffordance(autoDropBtn, c);
     }
     multiplierLabel.textContent = `${t("multiplier")}: x${s.bounceMultiplier.toFixed(2)}`;
     if (s.bounceMultiplier >= MULTIPLIER_MAX) {
       multiplierBtn.textContent = t("max");
       multiplierBtn.disabled = true;
+      setAffordance(multiplierBtn, 0);
     } else {
-      multiplierBtn.textContent = `+0.05 (${costOf("bounceMultiplier", getLevel(s, "bounceMultiplier"))})`;
+      const c = costOf("bounceMultiplier", getLevel(s, "bounceMultiplier"));
+      multiplierBtn.textContent = `+0.05 (${c})`;
       multiplierBtn.disabled = false;
+      setAffordance(multiplierBtn, c);
     }
     criticalLabel.textContent = `${t("critical")}: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
     if (s.criticalChance >= CRITICAL_MAX_CHANCE) {
       criticalBtn.textContent = t("max");
       criticalBtn.disabled = true;
+      setAffordance(criticalBtn, 0);
     } else {
-      criticalBtn.textContent = `+5% (${costOf("critical", getLevel(s, "critical"))})`;
+      const c = costOf("critical", getLevel(s, "critical"));
+      criticalBtn.textContent = `+5% (${c})`;
       criticalBtn.disabled = false;
+      setAffordance(criticalBtn, c);
     }
     multiDropLabel.textContent = `${t("multiDrop")}: ${s.multiDrop}`;
-    multiDropBtn.textContent = `+1 (${costOf("multiDrop", getLevel(s, "multiDrop"))})`;
+    const multiDropCost = costOf("multiDrop", getLevel(s, "multiDrop"));
+    multiDropBtn.textContent = `+1 (${multiDropCost})`;
+    setAffordance(multiDropBtn, multiDropCost);
     const totalRows = 3 + s.expandRows * 2;
     expandRowsLabel.textContent = `${t("expandRows")}: ${totalRows}`;
     if (s.expandRows >= EXPAND_ROWS_MAX) {
       expandRowsBtn.textContent = t("max");
       expandRowsBtn.disabled = true;
+      setAffordance(expandRowsBtn, 0);
     } else {
-      expandRowsBtn.textContent = `+2 (${costOf("expandRows", getLevel(s, "expandRows"))})`;
+      const c = costOf("expandRows", getLevel(s, "expandRows"));
+      expandRowsBtn.textContent = `+2 (${c})`;
       expandRowsBtn.disabled = false;
+      setAffordance(expandRowsBtn, c);
     }
     const totalCols = 3 + s.expandCols * 2;
     expandColsLabel.textContent = `${t("expandCols")}: ${totalCols}`;
     if (s.expandCols >= EXPAND_COLS_MAX) {
       expandColsBtn.textContent = t("max");
       expandColsBtn.disabled = true;
+      setAffordance(expandColsBtn, 0);
     } else {
-      expandColsBtn.textContent = `+2 (${costOf("expandCols", getLevel(s, "expandCols"))})`;
+      const c = costOf("expandCols", getLevel(s, "expandCols"));
+      expandColsBtn.textContent = `+2 (${c})`;
       expandColsBtn.disabled = false;
+      setAffordance(expandColsBtn, c);
     }
     if (s.hasBumpers) {
       bumperLabel.textContent = `${t("bumpers")}: ${t("on")}`;
       bumperBtn.textContent = t("purchased");
       bumperBtn.disabled = true;
+      setAffordance(bumperBtn, 0);
     } else {
       bumperLabel.textContent = `${t("bumpers")}: ${t("off")}`;
-      bumperBtn.textContent = `${t("buy")} (${costOf("bumpers", getLevel(s, "bumpers"))})`;
+      const c = costOf("bumpers", getLevel(s, "bumpers"));
+      bumperBtn.textContent = `${t("buy")} (${c})`;
+      setAffordance(bumperBtn, c);
     }
     if (s.hasZigzag) {
       zigzagLabel.textContent = `${t("zigzag")}: ${t("on")}`;
       zigzagBtn.textContent = t("purchased");
       zigzagBtn.disabled = true;
+      setAffordance(zigzagBtn, 0);
     } else {
       zigzagLabel.textContent = `${t("zigzag")}: ${t("off")}`;
-      zigzagBtn.textContent = `${t("buy")} (${costOf("zigzag", getLevel(s, "zigzag"))})`;
+      const c = costOf("zigzag", getLevel(s, "zigzag"));
+      zigzagBtn.textContent = `${t("buy")} (${c})`;
+      setAffordance(zigzagBtn, c);
     }
     // Traits
     if (s.hasSpecialBalls) {
       traitsUnlockLabel.textContent = `${t("traits")}: ${t("on")}`;
       traitsUnlockBtn.textContent = t("purchased");
       traitsUnlockBtn.disabled = true;
+      setAffordance(traitsUnlockBtn, 0);
       for (let i = 0; i < traitDefs.length; i++) {
         const def = traitDefs[i];
         const count = s.specialBalls[def.key];
@@ -728,14 +769,19 @@ function createShopMenu(
         if (pct >= 100) {
           traitBtns[i].textContent = t("max");
           traitBtns[i].disabled = true;
+          setAffordance(traitBtns[i], 0);
         } else {
-          traitBtns[i].textContent = `+10% (${costOf(def.upgradeId, getLevel(s, def.upgradeId))})`;
+          const c = costOf(def.upgradeId, getLevel(s, def.upgradeId));
+          traitBtns[i].textContent = `+10% (${c})`;
           traitBtns[i].disabled = false;
+          setAffordance(traitBtns[i], c);
         }
       }
     } else {
       traitsUnlockLabel.textContent = `${t("traits")}: ${t("off")}`;
-      traitsUnlockBtn.textContent = `${t("unlock")} (${costOf("traitsUnlock", getLevel(s, "traitsUnlock"))})`;
+      const c = costOf("traitsUnlock", getLevel(s, "traitsUnlock"));
+      traitsUnlockBtn.textContent = `${t("unlock")} (${c})`;
+      setAffordance(traitsUnlockBtn, c);
     }
     // Apply visibility conditions
     for (const item of conditionalRows) {

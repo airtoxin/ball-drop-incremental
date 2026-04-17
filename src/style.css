@@ -112,10 +112,39 @@ canvas {
   padding: 6px 14px;
   border-radius: 4px;
   cursor: pointer;
+  transition:
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    background 0.15s ease;
 }
 
 .shop-buy-btn:hover {
   background: rgba(122, 122, 255, 0.5);
+}
+
+.shop-buy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.shop-buy-btn.unaffordable {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.shop-buy-btn.unaffordable:hover {
+  background: rgba(122, 122, 255, 0.3);
+}
+
+.shop-buy-btn.affordable {
+  background: rgba(140, 210, 255, 0.4);
+  border-color: rgba(200, 230, 255, 0.9);
+  box-shadow: 0 0 10px rgba(140, 210, 255, 0.55);
+}
+
+.shop-buy-btn.affordable:hover {
+  background: rgba(140, 210, 255, 0.6);
+  box-shadow: 0 0 14px rgba(140, 210, 255, 0.8);
 }
 
 #settings-menu {
