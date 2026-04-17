@@ -157,6 +157,32 @@ export class EffectQueue {
 
 // ---------- Transient effect factories ----------
 
+export function createSplitBurst(x: number, y: number, r: number): Effect {
+  const start = performance.now();
+  const DURATION = 280;
+  const PARTICLE_COUNT = 6;
+  const startAngle = Math.random() * Math.PI * 2;
+  return {
+    update({ ctx, time }) {
+      const t = (time - start) / DURATION;
+      if (t >= 1) return false;
+      const alpha = 1 - t;
+      const partR = r * (1.1 + t * 3.5);
+      ctx.fillStyle = `rgba(200,200,200,${alpha})`;
+      const partSize = Math.max(1, r * 0.3 * (1 - t));
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const a = startAngle + (i / PARTICLE_COUNT) * Math.PI * 2;
+        const px = x + Math.cos(a) * partR;
+        const py = y + Math.sin(a) * partR;
+        ctx.beginPath();
+        ctx.arc(px, py, partSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return true;
+    },
+  };
+}
+
 export function createRespawnStreak(x: number, worldHeight: number): Effect {
   const start = performance.now();
   const DURATION = 140;

@@ -18,6 +18,7 @@ import {
   BIG_RADIUS_MULT,
   EffectQueue,
   createRespawnStreak,
+  createSplitBurst,
   renderBallTraits,
   type BallMeta,
   type BallTrait,
@@ -927,6 +928,8 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         // Split trait: chance to spawn a plain child ball inheriting parent's value
         if (meta?.traits.has("split") && Math.random() < SPLIT_SPAWN_CHANCE) {
           spawnChildBall(ball.position.x, ball.position.y, ballValue);
+          const r = ball.circleRadius ?? BALL_RADIUS;
+          effectQueue.add(createSplitBurst(ball.position.x, ball.position.y, r));
         }
         counterEl.textContent = String(getState().collisionCount);
       }
