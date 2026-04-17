@@ -884,7 +884,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     return c;
   }
 
-  function addBall(x: number): void {
+  function addBall(x: number, angleDeg = 0): void {
     const traits = rollTraits();
     const ball = createBall(x, traits);
     balls.set(ball.id, ball);
@@ -895,6 +895,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       splitAngle: Math.random() * Math.PI * 2,
       isChild: false,
     });
+    if (angleDeg !== 0) {
+      const rad = (angleDeg * Math.PI) / 180;
+      Body.setVelocity(ball, { x: Math.sin(rad) * 5, y: Math.cos(rad) * 5 });
+    }
     Composite.add(engine.world, ball);
   }
 
@@ -995,11 +999,11 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   });
 
   // Drop multiple balls respecting max limit
-  function dropBalls(baseX: number, spread: boolean): void {
+  function dropBalls(baseX: number, spread: boolean, angleDeg = 0): void {
     const s = getState();
     for (let i = 0; i < s.multiDrop && parentBallCount() < s.maxBalls; i++) {
       const x = spread ? baseX + (i - (s.multiDrop - 1) / 2) * (BALL_RADIUS * 8) : baseX;
-      addBall(x);
+      addBall(x, angleDeg);
     }
   }
 
@@ -1047,7 +1051,9 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       const cols = 3 + getState().expandCols * 2 + 1;
       const rangeWidth = cols * GRID_SIZE;
       const minX = width / 2 - rangeWidth / 2;
-      dropBalls(minX + Math.random() * rangeWidth, true);
+      // Random ±10° tilt avoids straight-through drops that miss every obstacle.
+      const angleDeg = (Math.random() * 2 - 1) * 10;
+      dropBalls(minX + Math.random() * rangeWidth, true, angleDeg);
     },
     addBumpers,
     rebuildObstacles,
