@@ -28,6 +28,7 @@ const translations = {
     unlock: "UNLOCK",
     reset: "Reset",
     resetConfirm: "Are you sure? All progress will be lost.",
+    clickToStart: "Click to Start",
   },
   ja: {
     shop: "ショップ",
@@ -58,6 +59,7 @@ const translations = {
     unlock: "解放",
     reset: "リセット",
     resetConfirm: "本当にリセットしますか？すべての進行が失われます。",
+    clickToStart: "クリックでスタート",
   },
 } as const;
 

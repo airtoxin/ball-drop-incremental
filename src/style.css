@@ -215,3 +215,25 @@ canvas {
     transform: translateY(-30px);
   }
 }
+
+#start-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-family: monospace;
+  font-size: 48px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+  user-select: none;
+}
+
+#start-overlay.hiding {
+  opacity: 0;
+  pointer-events: none;
+}
