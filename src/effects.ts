@@ -34,9 +34,9 @@ type TraitRenderer = (c: TraitRenderContext) => void;
 function drawPremium({ ctx, ball }: TraitRenderContext): void {
   const { x, y } = ball.position;
   const r = ball.circleRadius ?? BALL_RADIUS;
-  const auraR = r * 2.2;
+  const auraR = r * 2.0;
   const grad = ctx.createRadialGradient(x, y, r * 0.8, x, y, auraR);
-  grad.addColorStop(0, "rgba(255,215,0,0.55)");
+  grad.addColorStop(0, "rgba(255,215,0,0.32)");
   grad.addColorStop(1, "rgba(255,215,0,0)");
   ctx.fillStyle = grad;
   ctx.beginPath();
