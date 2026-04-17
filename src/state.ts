@@ -1,4 +1,16 @@
 import type { Locale } from "./i18n";
+import {
+  ALL_UPGRADE_IDS,
+  AUTO_DROP_BASE_INTERVAL,
+  AUTO_DROP_MIN_INTERVAL,
+  AUTO_DROP_STEP,
+  CRITICAL_CHANCE_PER_LEVEL,
+  MULTIPLIER_BASE,
+  MULTIPLIER_STEP,
+  RESTITUTION_STEP,
+  UPGRADE_DEFS,
+  getLevel,
+} from "./economy";
 
 const SAVE_KEY = "ball-drop-save";
 const SETTINGS_KEY = "ball-drop-settings";
@@ -122,6 +134,72 @@ export function disableSave(): void {
   saveDisabled = true;
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+// Cheap integrity check for loaded saves. Catches direct localStorage edits by
+// verifying that derived fields (maxBalls, bounceMultiplier, …) match what the
+// purchase handlers would produce from the underlying upgrade levels. A
+// determined attacker can still forge a consistent state, but naive "set
+// collisionCount to 1e12" edits trip at least one invariant.
+function isValid(s: SaveData): boolean {
+  const nums = [
+    s.collisionCount,
+    s.peakCoins,
+    s.maxBalls,
+    s.ballRestitution,
+    s.autoDropInterval,
+    s.bounceMultiplier,
+    s.criticalChance,
+    s.multiDrop,
+    s.expandRows,
+    s.expandCols,
+  ];
+  for (const n of nums) {
+    if (typeof n !== "number" || !Number.isFinite(n) || n < 0) return false;
+  }
+
+  for (const id of ALL_UPGRADE_IDS) {
+    const lvl = getLevel(s, id);
+    if (typeof lvl !== "number" || !Number.isFinite(lvl) || lvl < 0) return false;
+    if (lvl > UPGRADE_DEFS[id].maxLevel) return false;
+  }
+
+  if (s.maxBalls !== defaults.maxBalls + s.upgrades.maxBalls) return false;
+  if (s.multiDrop !== defaults.multiDrop + s.upgrades.multiDrop) return false;
+  if (
+    s.ballRestitution !==
+    round2(defaults.ballRestitution + s.upgrades.restitution * RESTITUTION_STEP)
+  )
+    return false;
+  if (
+    s.bounceMultiplier !== round2(MULTIPLIER_BASE + s.upgrades.bounceMultiplier * MULTIPLIER_STEP)
+  )
+    return false;
+  if (s.criticalChance !== round2(s.upgrades.critical * CRITICAL_CHANCE_PER_LEVEL)) return false;
+
+  if (s.upgrades.autoDrop === 0) {
+    if (s.autoDropInterval !== 0) return false;
+  } else {
+    const expected = Math.max(
+      AUTO_DROP_MIN_INTERVAL,
+      AUTO_DROP_BASE_INTERVAL - (s.upgrades.autoDrop - 1) * AUTO_DROP_STEP,
+    );
+    if (s.autoDropInterval !== expected) return false;
+  }
+
+  const traitSum =
+    s.specialBalls.big +
+    s.specialBalls.premium +
+    s.specialBalls.critical +
+    s.specialBalls.life +
+    s.specialBalls.split;
+  if (traitSum > 0 && !s.hasSpecialBalls) return false;
+
+  return true;
+}
+
 export function save(): void {
   if (saveDisabled) return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(current));
@@ -154,6 +232,16 @@ export function load(): void {
         upgrades: { ...structuredClone(defaults.upgrades), ...parsed.upgrades },
         volume: { ...structuredClone(defaults.volume), ...parsed.volume },
       };
+      // peakCoins is monotonic in updateState() but legacy saves from before
+      // the field existed have peakCoins=0; auto-heal before the check so
+      // those saves don't trip the validator.
+      if (current.peakCoins < current.collisionCount) {
+        current.peakCoins = current.collisionCount;
+      }
+      if (!isValid(current)) {
+        current = structuredClone(defaults);
+        localStorage.removeItem(SAVE_KEY);
+      }
     } catch {
       // corrupted save — start fresh
     }
