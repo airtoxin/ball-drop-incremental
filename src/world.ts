@@ -999,10 +999,11 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   });
 
   // Drop multiple balls respecting max limit
-  function dropBalls(baseX: number, spread: boolean, angleDeg = 0): void {
+  function dropBalls(baseX: number, spread: boolean, maxAngleDeg = 0): void {
     const s = getState();
     for (let i = 0; i < s.multiDrop && parentBallCount() < s.maxBalls; i++) {
       const x = spread ? baseX + (i - (s.multiDrop - 1) / 2) * (BALL_RADIUS * 8) : baseX;
+      const angleDeg = maxAngleDeg === 0 ? 0 : (Math.random() * 2 - 1) * maxAngleDeg;
       addBall(x, angleDeg);
     }
   }
@@ -1051,9 +1052,8 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       const cols = 3 + getState().expandCols * 2 + 1;
       const rangeWidth = cols * GRID_SIZE;
       const minX = width / 2 - rangeWidth / 2;
-      // Random ±30° tilt avoids straight-through drops that miss every obstacle.
-      const angleDeg = (Math.random() * 2 - 1) * 30;
-      dropBalls(minX + Math.random() * rangeWidth, true, angleDeg);
+      // Per-ball ±30° tilt avoids straight-through drops that miss every obstacle.
+      dropBalls(minX + Math.random() * rangeWidth, true, 30);
     },
     addBumpers,
     rebuildObstacles,
