@@ -8,6 +8,7 @@ import {
   updateVolume,
   onChange,
   disableSave,
+  save as saveState,
 } from "./state";
 import { t, getLocale, setLocale, onLocaleChange } from "./i18n";
 import type { Locale } from "./i18n";
@@ -1055,6 +1056,70 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       dropBalls(logicalX, true);
     }
   });
+
+  // Preset-driven save overwrite for calibration. Writes the config, persists,
+  // then reloads so the new state takes effect cleanly (auto-drop timer,
+  // obstacle grid, bumpers). Hit samples reset naturally on reload. Invoke
+  // __setup("<preset>") from devtools; presets are single-variable ablations.
+  (window as unknown as { __setup?: (preset: string) => void }).__setup = (preset) => {
+    const base = {
+      collisionCount: 0,
+      peakCoins: 0,
+      maxBalls: 20,
+      ballRestitution: 0.9,
+      autoDropInterval: 1000,
+      bounceMultiplier: 1,
+      criticalChance: 0,
+      multiDrop: 1,
+      expandRows: 0,
+      expandCols: 0,
+      hasBumpers: false,
+      hasZigzag: false,
+      hasSpecialBalls: false,
+      specialBalls: { big: 0, premium: 0, critical: 0, life: 0, split: 0 },
+      upgrades: {
+        maxBalls: 19,
+        restitution: 0,
+        autoDrop: 9,
+        bounceMultiplier: 0,
+        critical: 0,
+        multiDrop: 0,
+      },
+    };
+    const presets: Record<string, Partial<typeof base>> = {
+      baseline: {},
+      restitution: { ballRestitution: 1.4, upgrades: { ...base.upgrades, restitution: 10 } },
+      grid: { expandRows: 2, expandCols: 6 },
+      bumpers: { hasBumpers: true },
+      zigzag: { hasZigzag: true },
+      life: {
+        hasSpecialBalls: true,
+        specialBalls: { big: 0, premium: 0, critical: 0, life: 10, split: 0 },
+      },
+      big: {
+        hasSpecialBalls: true,
+        specialBalls: { big: 10, premium: 0, critical: 0, life: 0, split: 0 },
+      },
+      full: {
+        ballRestitution: 1.4,
+        expandRows: 2,
+        expandCols: 6,
+        hasBumpers: true,
+        hasZigzag: true,
+        hasSpecialBalls: true,
+        specialBalls: { big: 10, premium: 0, critical: 0, life: 10, split: 0 },
+        upgrades: { ...base.upgrades, restitution: 10 },
+      },
+    };
+    const overlay = presets[preset];
+    if (!overlay) {
+      console.warn(`unknown preset: ${preset}. available: ${Object.keys(presets).join(", ")}`);
+      return;
+    }
+    updateState({ ...base, ...overlay });
+    saveState();
+    window.location.reload();
+  };
 
   // Expose hit-count stats for simulator calibration. Call __hits() in the
   // devtools console after some play to see per-ball / per-throw aggregates.
