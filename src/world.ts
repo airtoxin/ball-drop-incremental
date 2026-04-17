@@ -121,10 +121,27 @@ function createBall(x: number, traits: Set<BallTrait>): Matter.Body {
   });
 }
 
-function createSettingsMenu(container: HTMLElement, onVolumeChange: () => void): HTMLElement {
+function createSettingsMenu(
+  container: HTMLElement,
+  onVolumeChange: () => void,
+  onClose: () => void,
+): HTMLElement {
+  const overlay = document.createElement("div");
+  overlay.id = "settings-overlay";
+  overlay.hidden = true;
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) onClose();
+  });
+
   const menu = document.createElement("div");
   menu.id = "settings-menu";
-  menu.hidden = true;
+  overlay.appendChild(menu);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.id = "settings-close-btn";
+  closeBtn.textContent = "\u2715";
+  closeBtn.addEventListener("click", onClose);
+  menu.appendChild(closeBtn);
 
   const state = getState();
   type SliderDef = {
@@ -224,8 +241,8 @@ function createSettingsMenu(container: HTMLElement, onVolumeChange: () => void):
     resetBtn.textContent = t("reset");
   });
 
-  container.appendChild(menu);
-  return menu;
+  container.appendChild(overlay);
+  return overlay;
 }
 
 function createBumpers(width: number, height: number): Matter.Body[] {
@@ -1212,16 +1229,20 @@ export function createWorld(canvas: HTMLCanvasElement): void {
 
   container.appendChild(muteBtn);
 
-  // Settings menu
-  const settingsMenu = createSettingsMenu(container, applyVolumes);
-
-  // Escape key toggles pause + settings
+  // Gear button (top-right, next to mute) toggles pause + settings
   let paused = false;
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      paused = !paused;
-      runner.enabled = !paused;
-      settingsMenu.hidden = !paused;
-    }
+  const togglePaused = (): void => {
+    paused = !paused;
+    runner.enabled = !paused;
+    settingsMenu.hidden = !paused;
+  };
+  const settingsMenu = createSettingsMenu(container, applyVolumes, togglePaused);
+  const settingsBtn = document.createElement("button");
+  settingsBtn.id = "settings-btn";
+  settingsBtn.textContent = "\u2699\uFE0F";
+  settingsBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    togglePaused();
   });
+  container.appendChild(settingsBtn);
 }
