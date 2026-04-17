@@ -253,7 +253,7 @@ function createSettingsMenu(
   return overlay;
 }
 
-function createBumpers(width: number, height: number): Matter.Body[] {
+function createBumpers(width: number, height: number, expandCols: number): Matter.Body[] {
   const BUMPER_WIDTH = 100;
   const bumperOpts: Matter.IChamferableBodyDefinition = {
     isStatic: true,
@@ -261,16 +261,13 @@ function createBumpers(width: number, height: number): Matter.Body[] {
     render: { fillStyle: "#7a7aff" },
     label: "bumper",
   };
-  const VISIBLE_EDGE = 5;
+  // Place bumpers two grid columns outside the current pin grid so balls
+  // actually clip them before escaping to the walls.
+  const halfCols = 1 + expandCols;
+  const offset = (halfCols + 2) * GRID_SIZE;
   return [
-    Bodies.rectangle(VISIBLE_EDGE - BUMPER_WIDTH / 2, height / 2, BUMPER_WIDTH, height, bumperOpts),
-    Bodies.rectangle(
-      width - VISIBLE_EDGE + BUMPER_WIDTH / 2,
-      height / 2,
-      BUMPER_WIDTH,
-      height,
-      bumperOpts,
-    ),
+    Bodies.rectangle(width / 2 - offset, height / 2, BUMPER_WIDTH, height, bumperOpts),
+    Bodies.rectangle(width / 2 + offset, height / 2, BUMPER_WIDTH, height, bumperOpts),
   ];
 }
 
@@ -978,7 +975,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   Events.on(engine, "afterUpdate", () => {
     for (const [id, ball] of balls) {
       const { min } = ball.bounds;
-      const outX = !getState().hasBumpers && (min.x < 0 || min.x > width);
+      const outX = min.x < 0 || min.x > width;
       if (min.y > height || outX) {
         const meta = ballMeta.get(id);
         if (meta && meta.lives > 0 && min.y > height) {
@@ -1184,10 +1181,16 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   const runner = Runner.create();
   Runner.run(runner, engine);
 
-  // Bumper helper
+  // Bumper helper — bumpers hug the pin grid, so they rebuild whenever the
+  // grid resizes.
+  let bumperBodies: Matter.Body[] = [];
   function addBumpers(): void {
-    const bumpers = createBumpers(width, height);
-    Composite.add(engine.world, bumpers);
+    bumperBodies = createBumpers(width, height, getState().expandCols);
+    Composite.add(engine.world, bumperBodies);
+  }
+  function removeBumpers(): void {
+    for (const b of bumperBodies) Composite.remove(engine.world, b);
+    bumperBodies = [];
   }
 
   // Restore bumpers from save
@@ -1203,6 +1206,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     const st = getState();
     obstacles = createObstacles(width, height, st.hasZigzag, st.expandRows, st.expandCols);
     Composite.add(engine.world, obstacles);
+    if (st.hasBumpers) {
+      removeBumpers();
+      addBumpers();
+    }
   }
 
   createShopMenu(
