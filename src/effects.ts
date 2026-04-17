@@ -69,7 +69,7 @@ function drawLife({ ctx, ball, meta }: TraitRenderContext): void {
   const { x, y } = ball.position;
   const r = ball.circleRadius ?? BALL_RADIUS;
   ctx.strokeStyle = "rgba(80,255,120,0.75)";
-  ctx.lineWidth = Math.max(1.5, r * 0.18);
+  ctx.lineWidth = Math.max(1, r * 0.1);
   for (let i = 0; i < meta.lives; i++) {
     const ringR = r * (1.3 + i * 0.35);
     ctx.beginPath();
@@ -110,6 +110,9 @@ const traitRenderers: Partial<Record<BallTrait, TraitRenderer>> = {
   // big has no overlay — size is the indicator.
 };
 
+// Back-to-front draw order. Traits earlier in the list are drawn first.
+const TRAIT_RENDER_ORDER: BallTrait[] = ["premium", "life", "critical", "split", "big"];
+
 export function renderBallTraits(
   ctx: CanvasRenderingContext2D,
   balls: Map<number, Matter.Body>,
@@ -119,7 +122,8 @@ export function renderBallTraits(
   for (const [id, ball] of balls) {
     const meta = ballMeta.get(id);
     if (!meta || meta.traits.size === 0) continue;
-    for (const trait of meta.traits) {
+    for (const trait of TRAIT_RENDER_ORDER) {
+      if (!meta.traits.has(trait)) continue;
       traitRenderers[trait]?.({ ctx, ball, meta, time });
     }
   }
