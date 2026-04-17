@@ -138,6 +138,32 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+// Keyed hash for localStorage integrity. Not cryptographic — the key ships in
+// the bundle, so a determined attacker can still forge signatures. Goal is to
+// deter casual JSON edits by making the on-disk format opaque and any naive
+// change invalidate the signature.
+const SIGN_KEY = "bd-inc-9f3a-sig-v1-5c7e-e86d";
+const SAVE_VERSION = 1;
+
+// cyrb53 — 53-bit non-cryptographic hash, deterministic, sync. Output fits in
+// a JS safe integer. Collision odds ≈ 1 in 9e15 per random perturbation.
+function cyrb53(str: string): number {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+function sign(dataStr: string): string {
+  return cyrb53(SIGN_KEY + dataStr + SIGN_KEY).toString(36);
+}
+
 // Cheap integrity check for loaded saves. Catches direct localStorage edits by
 // verifying that derived fields (maxBalls, bounceMultiplier, …) match what the
 // purchase handlers would produce from the underlying upgrade levels. A
@@ -202,7 +228,9 @@ function isValid(s: SaveData): boolean {
 
 export function save(): void {
   if (saveDisabled) return;
-  localStorage.setItem(SAVE_KEY, JSON.stringify(current));
+  const dataStr = JSON.stringify(current);
+  const envelope = { v: SAVE_VERSION, d: current, s: sign(dataStr) };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(envelope));
   localStorage.setItem(
     SETTINGS_KEY,
     JSON.stringify({ volume: current.volume, locale: current.locale, muted: current.muted }),
@@ -224,21 +252,49 @@ export function load(): void {
   const raw = localStorage.getItem(SAVE_KEY);
   if (raw) {
     try {
-      const parsed = JSON.parse(raw) as Partial<SaveData>;
-      current = {
-        ...structuredClone(defaults),
-        ...parsed,
-        specialBalls: { ...structuredClone(defaults.specialBalls), ...parsed.specialBalls },
-        upgrades: { ...structuredClone(defaults.upgrades), ...parsed.upgrades },
-        volume: { ...structuredClone(defaults.volume), ...parsed.volume },
-      };
-      // peakCoins is monotonic in updateState() but legacy saves from before
-      // the field existed have peakCoins=0; auto-heal before the check so
-      // those saves don't trip the validator.
-      if (current.peakCoins < current.collisionCount) {
-        current.peakCoins = current.collisionCount;
+      const outer = JSON.parse(raw) as unknown;
+      let parsed: Partial<SaveData> | null = null;
+      let invalid = false;
+
+      if (outer && typeof outer === "object" && "v" in outer) {
+        const env = outer as { v: unknown; d: unknown; s: unknown };
+        if (
+          env.v === SAVE_VERSION &&
+          typeof env.s === "string" &&
+          env.d &&
+          typeof env.d === "object"
+        ) {
+          if (sign(JSON.stringify(env.d)) === env.s) {
+            parsed = env.d as Partial<SaveData>;
+          } else {
+            invalid = true;
+          }
+        } else {
+          invalid = true;
+        }
+      } else {
+        // Legacy pre-signing format: whole object is the save data.
+        parsed = outer as Partial<SaveData>;
       }
-      if (!isValid(current)) {
+
+      if (parsed) {
+        current = {
+          ...structuredClone(defaults),
+          ...parsed,
+          specialBalls: { ...structuredClone(defaults.specialBalls), ...parsed.specialBalls },
+          upgrades: { ...structuredClone(defaults.upgrades), ...parsed.upgrades },
+          volume: { ...structuredClone(defaults.volume), ...parsed.volume },
+        };
+        // peakCoins is monotonic in updateState() but legacy saves from before
+        // the field existed have peakCoins=0; auto-heal before the check so
+        // those saves don't trip the validator.
+        if (current.peakCoins < current.collisionCount) {
+          current.peakCoins = current.collisionCount;
+        }
+        if (!isValid(current)) invalid = true;
+      }
+
+      if (invalid) {
         current = structuredClone(defaults);
         localStorage.removeItem(SAVE_KEY);
       }
