@@ -75,6 +75,9 @@ export interface UpgradeDef {
   // without lowering its end-game ceiling. Level N ≥ introCosts.length
   // falls through to the normal geometric formula.
   introCosts?: number[];
+  // Prerequisite upgrade that must reach a given level before this row is
+  // shown. Layered on top of revealAt: both conditions must be satisfied.
+  prereq?: { id: UpgradeId; level: number };
 }
 
 // Single source of truth for pricing. Per-upgrade growth rates are tuned so
@@ -85,7 +88,12 @@ export interface UpgradeDef {
 // bounceMultiplier (≈2.08×/lvl at hits=15) need the steepest curves.
 export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   maxBalls: { baseCost: 50, costGrowth: 1.5, maxLevel: MAX_BALLS_MAX_LEVEL },
-  restitution: { baseCost: 500, costGrowth: 1.4, maxLevel: RESTITUTION_MAX_LEVEL },
+  restitution: {
+    baseCost: 2500,
+    costGrowth: 1.4,
+    maxLevel: RESTITUTION_MAX_LEVEL,
+    prereq: { id: "expandCols", level: 2 },
+  },
   autoDrop: {
     baseCost: 800,
     costGrowth: 1.35,
@@ -153,6 +161,13 @@ export function revealAtOf(id: UpgradeId): number {
   // small enough that showing them from game start isn't intimidating.
   if (def.baseCost < 1000) return 0;
   return def.baseCost * 0.1;
+}
+
+export function isRevealed(state: Readonly<SaveData>, id: UpgradeId): boolean {
+  const def = UPGRADE_DEFS[id];
+  if (state.peakCoins < revealAtOf(id)) return false;
+  if (def.prereq && getLevel(state, def.prereq.id) < def.prereq.level) return false;
+  return true;
 }
 
 export function getLevel(state: Readonly<SaveData>, id: UpgradeId): number {

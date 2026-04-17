@@ -28,6 +28,7 @@ import {
   getLevel,
   incomePerSec,
   isMaxed,
+  isRevealed,
   type IncomeParams,
   type UpgradeId,
 } from "../src/economy";
@@ -142,6 +143,7 @@ function affordable(state: Readonly<SaveData>): UpgradeId[] {
   for (const id of ALL_UPGRADE_IDS) {
     const level = getLevel(state, id);
     if (isMaxed(id, level)) continue;
+    if (!isRevealed(state, id)) continue;
     if (costOf(id, level) > state.collisionCount) continue;
     out.push(id);
   }
@@ -168,6 +170,7 @@ const bangPerBuck: Strategy = (state, params) => {
   for (const id of ALL_UPGRADE_IDS) {
     const level = getLevel(state, id);
     if (isMaxed(id, level)) continue;
+    if (!isRevealed(state, id)) continue;
     const cost = costOf(id, level);
     const next = structuredClone(state) as SaveData;
     applyPurchase(next, id);
@@ -309,6 +312,7 @@ function runSim(
       for (const id of ALL_UPGRADE_IDS) {
         const level = getLevel(state, id);
         if (isMaxed(id, level)) continue;
+        if (!isRevealed(state, id)) continue;
         const c = costOf(id, level);
         if (c < minCost) minCost = c;
       }
@@ -325,6 +329,7 @@ function runSim(
     for (const id of ALL_UPGRADE_IDS) {
       const level = getLevel(state, id);
       if (isMaxed(id, level)) continue;
+      if (!isRevealed(state, id)) continue;
       const c = costOf(id, level);
       if (c < next) next = c;
     }
@@ -332,6 +337,7 @@ function runSim(
     const step = deficit > 0 ? Math.max(args.dt, deficit / inc) : args.dt;
     const used = Math.min(step, maxSec - t);
     state.collisionCount += inc * used;
+    if (state.collisionCount > state.peakCoins) state.peakCoins = state.collisionCount;
     t += used;
     snapshot();
   }
