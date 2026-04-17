@@ -1042,7 +1042,12 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     container,
     counterEl,
     () => {
-      dropBalls(Math.random() * width, true);
+      // Drop within the current obstacle cluster width (+1 cell of margin)
+      // so auto-drop stays effective without buying column expansions.
+      const cols = 3 + getState().expandCols * 2 + 1;
+      const rangeWidth = cols * GRID_SIZE;
+      const minX = width / 2 - rangeWidth / 2;
+      dropBalls(minX + Math.random() * rangeWidth, true);
     },
     addBumpers,
     rebuildObstacles,
