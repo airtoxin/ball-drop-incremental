@@ -186,6 +186,8 @@ function isValid(s: SaveData): boolean {
     if (typeof n !== "number" || !Number.isFinite(n) || n < 0) return false;
   }
 
+  if (s.peakCoins < s.collisionCount) return false;
+
   for (const id of ALL_UPGRADE_IDS) {
     const lvl = getLevel(s, id);
     if (typeof lvl !== "number" || !Number.isFinite(lvl) || lvl < 0) return false;
@@ -254,7 +256,6 @@ export function load(): void {
     try {
       const outer = JSON.parse(raw) as unknown;
       let parsed: Partial<SaveData> | null = null;
-      let invalid = false;
 
       if (outer && typeof outer === "object" && "v" in outer) {
         const env = outer as { v: unknown; d: unknown; s: unknown };
@@ -262,19 +263,11 @@ export function load(): void {
           env.v === SAVE_VERSION &&
           typeof env.s === "string" &&
           env.d &&
-          typeof env.d === "object"
+          typeof env.d === "object" &&
+          sign(JSON.stringify(env.d)) === env.s
         ) {
-          if (sign(JSON.stringify(env.d)) === env.s) {
-            parsed = env.d as Partial<SaveData>;
-          } else {
-            invalid = true;
-          }
-        } else {
-          invalid = true;
+          parsed = env.d as Partial<SaveData>;
         }
-      } else {
-        // Legacy pre-signing format: whole object is the save data.
-        parsed = outer as Partial<SaveData>;
       }
 
       if (parsed) {
@@ -285,16 +278,9 @@ export function load(): void {
           upgrades: { ...structuredClone(defaults.upgrades), ...parsed.upgrades },
           volume: { ...structuredClone(defaults.volume), ...parsed.volume },
         };
-        // peakCoins is monotonic in updateState() but legacy saves from before
-        // the field existed have peakCoins=0; auto-heal before the check so
-        // those saves don't trip the validator.
-        if (current.peakCoins < current.collisionCount) {
-          current.peakCoins = current.collisionCount;
-        }
-        if (!isValid(current)) invalid = true;
       }
 
-      if (invalid) {
+      if (!parsed || !isValid(current)) {
         current = structuredClone(defaults);
         localStorage.removeItem(SAVE_KEY);
       }
