@@ -120,7 +120,7 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
     costGrowth: 5,
     maxLevel: EXPAND_COLS_MAX,
     revealAt: 0,
-    introCosts: [500, 1500],
+    introCosts: [200, 300, 500],
   },
   bumpers: { baseCost: 200_000, costGrowth: 1, maxLevel: 1 },
   zigzag: { baseCost: 5_000_000, costGrowth: 1, maxLevel: 1 },
