@@ -23,6 +23,18 @@ import {
   type BallMeta,
   type BallTrait,
 } from "./effects";
+import {
+  AUTO_DROP_MIN_INTERVAL,
+  CRITICAL_BONUS,
+  CRITICAL_MAX_CHANCE,
+  EXPAND_COLS_MAX,
+  EXPAND_ROWS_MAX,
+  MULTIPLIER_MAX,
+  SPLIT_SPAWN_CHANCE,
+  TRAIT_CHANCE_PER_LEVEL,
+  costOf,
+  getLevel,
+} from "./economy";
 
 const { Engine, Render, Runner, Body, Bodies, Composite, Events } = Matter;
 
@@ -80,9 +92,6 @@ function createObstacles(
   }
   return bodies;
 }
-
-const TRAIT_CHANCE_PER_LEVEL = 0.1;
-const SPLIT_SPAWN_CHANCE = 0.2;
 
 function rollTraits(): Set<BallTrait> {
   const s = getState();
@@ -278,16 +287,15 @@ function createShopMenu(
   maxBallsRow.className = "shop-item";
 
   const maxBallsLabel = document.createElement("span");
-  const maxBallsCost = 100;
 
   const maxBallsBtn = document.createElement("button");
   maxBallsBtn.className = "shop-buy-btn";
-  maxBallsBtn.textContent = `+1 (${maxBallsCost})`;
   maxBallsBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= maxBallsCost) {
-      updateState({ collisionCount: s.collisionCount - maxBallsCost, maxBalls: s.maxBalls + 1 });
+    const cost = costOf("maxBalls", getLevel(s, "maxBalls"));
+    if (s.collisionCount >= cost) {
+      updateState({ collisionCount: s.collisionCount - cost, maxBalls: s.maxBalls + 1 });
       updateUpgrades({ maxBalls: s.upgrades.maxBalls + 1 });
       counterEl.textContent = String(getState().collisionCount);
     }
@@ -302,17 +310,16 @@ function createShopMenu(
   restitutionRow.className = "shop-item";
 
   const restitutionLabel = document.createElement("span");
-  const restitutionCost = 200;
 
   const restitutionBtn = document.createElement("button");
   restitutionBtn.className = "shop-buy-btn";
-  restitutionBtn.textContent = `+0.05 (${restitutionCost})`;
   restitutionBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= restitutionCost) {
+    const cost = costOf("restitution", getLevel(s, "restitution"));
+    if (s.collisionCount >= cost) {
       updateState({
-        collisionCount: s.collisionCount - restitutionCost,
+        collisionCount: s.collisionCount - cost,
         ballRestitution: Math.round((s.ballRestitution + 0.05) * 100) / 100,
       });
       updateUpgrades({ restitution: s.upgrades.restitution + 1 });
@@ -329,9 +336,6 @@ function createShopMenu(
   autoDropRow.className = "shop-item";
 
   const autoDropLabel = document.createElement("span");
-  const autoDropCost = 300;
-  const AUTO_DROP_BASE_INTERVAL = 10000;
-  const AUTO_DROP_MIN_INTERVAL = 1000;
 
   const autoDropBtn = document.createElement("button");
   autoDropBtn.className = "shop-buy-btn";
@@ -346,14 +350,12 @@ function createShopMenu(
   autoDropBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= autoDropCost) {
+    const cost = costOf("autoDrop", getLevel(s, "autoDrop"));
+    if (s.collisionCount >= cost && s.autoDropInterval !== AUTO_DROP_MIN_INTERVAL) {
       const newLevel = s.upgrades.autoDrop + 1;
-      const newInterval = Math.max(
-        AUTO_DROP_MIN_INTERVAL,
-        AUTO_DROP_BASE_INTERVAL - (newLevel - 1) * 1000,
-      );
+      const newInterval = Math.max(AUTO_DROP_MIN_INTERVAL, 10000 - (newLevel - 1) * 1000);
       updateState({
-        collisionCount: s.collisionCount - autoDropCost,
+        collisionCount: s.collisionCount - cost,
         autoDropInterval: newInterval,
       });
       updateUpgrades({ autoDrop: newLevel });
@@ -377,22 +379,17 @@ function createShopMenu(
   multiplierRow.className = "shop-item";
 
   const multiplierLabel = document.createElement("span");
-  const multiplierCost = 500;
-  const MULTIPLIER_STEP = 0.05;
-  const MULTIPLIER_MAX = 2;
 
   const multiplierBtn = document.createElement("button");
   multiplierBtn.className = "shop-buy-btn";
   multiplierBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= multiplierCost && s.bounceMultiplier < MULTIPLIER_MAX) {
-      const newMult = Math.min(
-        MULTIPLIER_MAX,
-        Math.round((s.bounceMultiplier + MULTIPLIER_STEP) * 100) / 100,
-      );
+    const cost = costOf("bounceMultiplier", getLevel(s, "bounceMultiplier"));
+    if (s.collisionCount >= cost && s.bounceMultiplier < MULTIPLIER_MAX) {
+      const newMult = Math.min(MULTIPLIER_MAX, Math.round((s.bounceMultiplier + 0.05) * 100) / 100);
       updateState({
-        collisionCount: s.collisionCount - multiplierCost,
+        collisionCount: s.collisionCount - cost,
         bounceMultiplier: newMult,
       });
       updateUpgrades({ bounceMultiplier: s.upgrades.bounceMultiplier + 1 });
@@ -409,23 +406,20 @@ function createShopMenu(
   criticalRow.className = "shop-item";
 
   const criticalLabel = document.createElement("span");
-  const criticalCost = 400;
-  const CRITICAL_CHANCE_PER_LEVEL = 0.05;
-  const CRITICAL_MAX_CHANCE = 0.5;
-  const CRITICAL_BONUS = 5;
 
   const criticalBtn = document.createElement("button");
   criticalBtn.className = "shop-buy-btn";
   criticalBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= criticalCost && s.criticalChance < CRITICAL_MAX_CHANCE) {
+    const cost = costOf("critical", getLevel(s, "critical"));
+    if (s.collisionCount >= cost && s.criticalChance < CRITICAL_MAX_CHANCE) {
       const newChance = Math.min(
         CRITICAL_MAX_CHANCE,
-        Math.round((s.criticalChance + CRITICAL_CHANCE_PER_LEVEL) * 100) / 100,
+        Math.round((s.criticalChance + 0.05) * 100) / 100,
       );
       updateState({
-        collisionCount: s.collisionCount - criticalCost,
+        collisionCount: s.collisionCount - cost,
         criticalChance: newChance,
       });
       updateUpgrades({ critical: s.upgrades.critical + 1 });
@@ -442,17 +436,16 @@ function createShopMenu(
   multiDropRow.className = "shop-item";
 
   const multiDropLabel = document.createElement("span");
-  const multiDropCost = 400;
 
   const multiDropBtn = document.createElement("button");
   multiDropBtn.className = "shop-buy-btn";
-  multiDropBtn.textContent = `+1 (${multiDropCost})`;
   multiDropBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= multiDropCost) {
+    const cost = costOf("multiDrop", getLevel(s, "multiDrop"));
+    if (s.collisionCount >= cost) {
       updateState({
-        collisionCount: s.collisionCount - multiDropCost,
+        collisionCount: s.collisionCount - cost,
         multiDrop: s.multiDrop + 1,
       });
       updateUpgrades({ multiDrop: s.upgrades.multiDrop + 1 });
@@ -469,17 +462,16 @@ function createShopMenu(
   expandRowsRow.className = "shop-item";
 
   const expandRowsLabel = document.createElement("span");
-  const expandRowsCost = 300;
-  const EXPAND_ROWS_MAX = 2;
 
   const expandRowsBtn = document.createElement("button");
   expandRowsBtn.className = "shop-buy-btn";
   expandRowsBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= expandRowsCost && s.expandRows < EXPAND_ROWS_MAX) {
+    const cost = costOf("expandRows", getLevel(s, "expandRows"));
+    if (s.collisionCount >= cost && s.expandRows < EXPAND_ROWS_MAX) {
       updateState({
-        collisionCount: s.collisionCount - expandRowsCost,
+        collisionCount: s.collisionCount - cost,
         expandRows: s.expandRows + 1,
       });
       counterEl.textContent = String(getState().collisionCount);
@@ -496,17 +488,16 @@ function createShopMenu(
   expandColsRow.className = "shop-item";
 
   const expandColsLabel = document.createElement("span");
-  const expandColsCost = 300;
-  const EXPAND_COLS_MAX = 6;
 
   const expandColsBtn = document.createElement("button");
   expandColsBtn.className = "shop-buy-btn";
   expandColsBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= expandColsCost && s.expandCols < EXPAND_COLS_MAX) {
+    const cost = costOf("expandCols", getLevel(s, "expandCols"));
+    if (s.collisionCount >= cost && s.expandCols < EXPAND_COLS_MAX) {
       updateState({
-        collisionCount: s.collisionCount - expandColsCost,
+        collisionCount: s.collisionCount - cost,
         expandCols: s.expandCols + 1,
       });
       counterEl.textContent = String(getState().collisionCount);
@@ -523,16 +514,16 @@ function createShopMenu(
   bumperRow.className = "shop-item";
 
   const bumperLabel = document.createElement("span");
-  const bumperCost = 600;
 
   const bumperBtn = document.createElement("button");
   bumperBtn.className = "shop-buy-btn";
   bumperBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= bumperCost && !s.hasBumpers) {
+    const cost = costOf("bumpers", getLevel(s, "bumpers"));
+    if (s.collisionCount >= cost && !s.hasBumpers) {
       updateState({
-        collisionCount: s.collisionCount - bumperCost,
+        collisionCount: s.collisionCount - cost,
         hasBumpers: true,
       });
       counterEl.textContent = String(getState().collisionCount);
@@ -549,16 +540,16 @@ function createShopMenu(
   zigzagRow.className = "shop-item";
 
   const zigzagLabel = document.createElement("span");
-  const zigzagCost = 800;
 
   const zigzagBtn = document.createElement("button");
   zigzagBtn.className = "shop-buy-btn";
   zigzagBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= zigzagCost && !s.hasZigzag) {
+    const cost = costOf("zigzag", getLevel(s, "zigzag"));
+    if (s.collisionCount >= cost && !s.hasZigzag) {
       updateState({
-        collisionCount: s.collisionCount - zigzagCost,
+        collisionCount: s.collisionCount - cost,
         hasZigzag: true,
       });
       counterEl.textContent = String(getState().collisionCount);
@@ -575,16 +566,16 @@ function createShopMenu(
   traitsUnlockRow.className = "shop-item";
 
   const traitsUnlockLabel = document.createElement("span");
-  const traitsUnlockCost = 1000;
 
   const traitsUnlockBtn = document.createElement("button");
   traitsUnlockBtn.className = "shop-buy-btn";
   traitsUnlockBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const s = getState();
-    if (s.collisionCount >= traitsUnlockCost && !s.hasSpecialBalls) {
+    const cost = costOf("traitsUnlock", getLevel(s, "traitsUnlock"));
+    if (s.collisionCount >= cost && !s.hasSpecialBalls) {
       updateState({
-        collisionCount: s.collisionCount - traitsUnlockCost,
+        collisionCount: s.collisionCount - cost,
         hasSpecialBalls: true,
       });
       counterEl.textContent = String(getState().collisionCount);
@@ -600,13 +591,13 @@ function createShopMenu(
   const traitDefs: {
     key: TraitKey;
     labelKey: "traitBig" | "traitPremium" | "traitCritical" | "traitLife" | "traitSplit";
-    cost: number;
+    upgradeId: "trait:big" | "trait:premium" | "trait:critical" | "trait:life" | "trait:split";
   }[] = [
-    { key: "big", labelKey: "traitBig", cost: 500 },
-    { key: "premium", labelKey: "traitPremium", cost: 500 },
-    { key: "critical", labelKey: "traitCritical", cost: 500 },
-    { key: "life", labelKey: "traitLife", cost: 500 },
-    { key: "split", labelKey: "traitSplit", cost: 500 },
+    { key: "big", labelKey: "traitBig", upgradeId: "trait:big" },
+    { key: "premium", labelKey: "traitPremium", upgradeId: "trait:premium" },
+    { key: "critical", labelKey: "traitCritical", upgradeId: "trait:critical" },
+    { key: "life", labelKey: "traitLife", upgradeId: "trait:life" },
+    { key: "split", labelKey: "traitSplit", upgradeId: "trait:split" },
   ];
 
   const traitLabels: HTMLElement[] = [];
@@ -625,8 +616,9 @@ function createShopMenu(
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const s = getState();
-      if (s.hasSpecialBalls && s.collisionCount >= def.cost) {
-        updateState({ collisionCount: s.collisionCount - def.cost });
+      const cost = costOf(def.upgradeId, getLevel(s, def.upgradeId));
+      if (s.hasSpecialBalls && s.collisionCount >= cost) {
+        updateState({ collisionCount: s.collisionCount - cost });
         updateSpecialBalls({ [def.key]: s.specialBalls[def.key] + 1 });
         counterEl.textContent = String(getState().collisionCount);
       }
@@ -642,50 +634,58 @@ function createShopMenu(
   const refreshLabels = () => {
     const s = getState();
     maxBallsLabel.textContent = `${t("maxBalls")}: ${s.maxBalls}`;
+    maxBallsBtn.textContent = `+1 (${costOf("maxBalls", getLevel(s, "maxBalls"))})`;
     restitutionLabel.textContent = `${t("restitution")}: ${s.ballRestitution.toFixed(2)}`;
+    restitutionBtn.textContent = `+0.05 (${costOf("restitution", getLevel(s, "restitution"))})`;
     if (s.autoDropInterval > 0) {
       autoDropLabel.textContent = `${t("autoDrop")}: ${(s.autoDropInterval / 1000).toFixed(1)}s`;
-      autoDropBtn.textContent =
-        s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL ? t("max") : `-1s (${autoDropCost})`;
-      autoDropBtn.disabled = s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL;
+      if (s.autoDropInterval <= AUTO_DROP_MIN_INTERVAL) {
+        autoDropBtn.textContent = t("max");
+        autoDropBtn.disabled = true;
+      } else {
+        autoDropBtn.textContent = `-1s (${costOf("autoDrop", getLevel(s, "autoDrop"))})`;
+        autoDropBtn.disabled = false;
+      }
     } else {
       autoDropLabel.textContent = `${t("autoDrop")}: ${t("off")}`;
-      autoDropBtn.textContent = `${t("on")} (${autoDropCost})`;
+      autoDropBtn.textContent = `${t("on")} (${costOf("autoDrop", getLevel(s, "autoDrop"))})`;
+      autoDropBtn.disabled = false;
     }
     multiplierLabel.textContent = `${t("multiplier")}: x${s.bounceMultiplier.toFixed(2)}`;
     if (s.bounceMultiplier >= MULTIPLIER_MAX) {
       multiplierBtn.textContent = t("max");
       multiplierBtn.disabled = true;
     } else {
-      multiplierBtn.textContent = `+0.05 (${multiplierCost})`;
+      multiplierBtn.textContent = `+0.05 (${costOf("bounceMultiplier", getLevel(s, "bounceMultiplier"))})`;
       multiplierBtn.disabled = false;
     }
+    criticalLabel.textContent = `${t("critical")}: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
     if (s.criticalChance >= CRITICAL_MAX_CHANCE) {
-      criticalLabel.textContent = `${t("critical")}: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
       criticalBtn.textContent = t("max");
       criticalBtn.disabled = true;
     } else {
-      criticalLabel.textContent = `${t("critical")}: ${Math.round(s.criticalChance * 100)}% (x${CRITICAL_BONUS})`;
-      criticalBtn.textContent = `+5% (${criticalCost})`;
+      criticalBtn.textContent = `+5% (${costOf("critical", getLevel(s, "critical"))})`;
+      criticalBtn.disabled = false;
     }
     multiDropLabel.textContent = `${t("multiDrop")}: ${s.multiDrop}`;
+    multiDropBtn.textContent = `+1 (${costOf("multiDrop", getLevel(s, "multiDrop"))})`;
     const totalRows = 3 + s.expandRows * 2;
+    expandRowsLabel.textContent = `${t("expandRows")}: ${totalRows}`;
     if (s.expandRows >= EXPAND_ROWS_MAX) {
-      expandRowsLabel.textContent = `${t("expandRows")}: ${totalRows}`;
       expandRowsBtn.textContent = t("max");
       expandRowsBtn.disabled = true;
     } else {
-      expandRowsLabel.textContent = `${t("expandRows")}: ${totalRows}`;
-      expandRowsBtn.textContent = `+2 (${expandRowsCost})`;
+      expandRowsBtn.textContent = `+2 (${costOf("expandRows", getLevel(s, "expandRows"))})`;
+      expandRowsBtn.disabled = false;
     }
     const totalCols = 3 + s.expandCols * 2;
+    expandColsLabel.textContent = `${t("expandCols")}: ${totalCols}`;
     if (s.expandCols >= EXPAND_COLS_MAX) {
-      expandColsLabel.textContent = `${t("expandCols")}: ${totalCols}`;
       expandColsBtn.textContent = t("max");
       expandColsBtn.disabled = true;
     } else {
-      expandColsLabel.textContent = `${t("expandCols")}: ${totalCols}`;
-      expandColsBtn.textContent = `+2 (${expandColsCost})`;
+      expandColsBtn.textContent = `+2 (${costOf("expandCols", getLevel(s, "expandCols"))})`;
+      expandColsBtn.disabled = false;
     }
     if (s.hasBumpers) {
       bumperLabel.textContent = `${t("bumpers")}: ${t("on")}`;
@@ -693,7 +693,7 @@ function createShopMenu(
       bumperBtn.disabled = true;
     } else {
       bumperLabel.textContent = `${t("bumpers")}: ${t("off")}`;
-      bumperBtn.textContent = `${t("buy")} (${bumperCost})`;
+      bumperBtn.textContent = `${t("buy")} (${costOf("bumpers", getLevel(s, "bumpers"))})`;
     }
     if (s.hasZigzag) {
       zigzagLabel.textContent = `${t("zigzag")}: ${t("on")}`;
@@ -701,7 +701,7 @@ function createShopMenu(
       zigzagBtn.disabled = true;
     } else {
       zigzagLabel.textContent = `${t("zigzag")}: ${t("off")}`;
-      zigzagBtn.textContent = `${t("buy")} (${zigzagCost})`;
+      zigzagBtn.textContent = `${t("buy")} (${costOf("zigzag", getLevel(s, "zigzag"))})`;
     }
     // Traits
     if (s.hasSpecialBalls) {
@@ -717,13 +717,13 @@ function createShopMenu(
           traitBtns[i].textContent = t("max");
           traitBtns[i].disabled = true;
         } else {
-          traitBtns[i].textContent = `+10% (${def.cost})`;
+          traitBtns[i].textContent = `+10% (${costOf(def.upgradeId, getLevel(s, def.upgradeId))})`;
           traitBtns[i].disabled = false;
         }
       }
     } else {
       traitsUnlockLabel.textContent = `${t("traits")}: ${t("off")}`;
-      traitsUnlockBtn.textContent = `${t("unlock")} (${traitsUnlockCost})`;
+      traitsUnlockBtn.textContent = `${t("unlock")} (${costOf("traitsUnlock", getLevel(s, "traitsUnlock"))})`;
     }
     // Apply visibility conditions
     for (const item of conditionalRows) {

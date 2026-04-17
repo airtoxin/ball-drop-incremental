@@ -40,7 +40,7 @@ export interface SaveData {
   };
 }
 
-const defaults: SaveData = {
+export const defaults: SaveData = {
   locale: "en",
   collisionCount: 100_000_000,
   maxBalls: 1,
