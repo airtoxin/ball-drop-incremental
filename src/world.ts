@@ -11,13 +11,23 @@ import {
 } from "./state";
 import { t, getLocale, setLocale, onLocaleChange } from "./i18n";
 import type { Locale } from "./i18n";
+import {
+  ALL_TRAITS,
+  BALL_COLOR,
+  BALL_RADIUS,
+  BIG_RADIUS_MULT,
+  EffectQueue,
+  createRespawnStreak,
+  renderBallTraits,
+  type BallMeta,
+  type BallTrait,
+} from "./effects";
 
 const { Engine, Render, Runner, Body, Bodies, Composite, Events } = Matter;
 
 const GAME_WIDTH = 1920;
 const GAME_HEIGHT = 1080;
 const GRID_SIZE = 100;
-const BALL_RADIUS = 10;
 const WALL_COLOR = "#4a4a6a";
 const FLASH_COLOR = "#ffffff";
 const FLASH_DURATION = 150;
@@ -70,30 +80,17 @@ function createObstacles(
   return bodies;
 }
 
-type BallTrait = "big" | "premium" | "critical" | "life" | "split";
-
-interface BallMeta {
-  value: number;
-  traits: Set<BallTrait>;
-  lives: number;
-  splitAngle: number;
-  isChild: boolean;
-}
-
 const TRAIT_CHANCE_PER_LEVEL = 0.1;
-const BIG_RADIUS_MULT = 2;
-const BALL_COLOR = "#cccccc";
 const SPLIT_SPAWN_CHANCE = 0.2;
 
 function rollTraits(): Set<BallTrait> {
   const s = getState();
   if (!s.hasSpecialBalls) return new Set();
   const traits = new Set<BallTrait>();
-  const types: BallTrait[] = ["big", "premium", "critical", "life", "split"];
-  for (const t of types) {
-    const chance = s.specialBalls[t] * TRAIT_CHANCE_PER_LEVEL;
+  for (const trait of ALL_TRAITS) {
+    const chance = s.specialBalls[trait] * TRAIT_CHANCE_PER_LEVEL;
     if (chance > 0 && Math.random() < chance) {
-      traits.add(t);
+      traits.add(trait);
     }
   }
   return traits;
@@ -110,86 +107,6 @@ function createBall(x: number, traits: Set<BallTrait>): Matter.Body {
       fillStyle: BALL_COLOR,
     },
   });
-}
-
-function drawPremiumEffect(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
-  const auraR = r * 2.2;
-  const grad = ctx.createRadialGradient(x, y, r * 0.8, x, y, auraR);
-  grad.addColorStop(0, "rgba(255,215,0,0.55)");
-  grad.addColorStop(1, "rgba(255,215,0,0)");
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(x, y, auraR, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawCriticalEffect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  rotation: number,
-): void {
-  const spikes = 10;
-  const baseR = r;
-  const tipR = r * 1.4;
-  const baseHalfAngle = (Math.PI / spikes) * 0.4;
-  ctx.fillStyle = "#ff5555";
-  for (let i = 0; i < spikes; i++) {
-    const a = (i / spikes) * Math.PI * 2 + rotation;
-    ctx.beginPath();
-    ctx.moveTo(x + Math.cos(a - baseHalfAngle) * baseR, y + Math.sin(a - baseHalfAngle) * baseR);
-    ctx.lineTo(x + Math.cos(a) * tipR, y + Math.sin(a) * tipR);
-    ctx.lineTo(x + Math.cos(a + baseHalfAngle) * baseR, y + Math.sin(a + baseHalfAngle) * baseR);
-    ctx.closePath();
-    ctx.fill();
-  }
-}
-
-function drawSplitEffect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  angle: number,
-): void {
-  // Cleavage groove across the ball: two inward-pinching curves meeting at the middle.
-  const dx = Math.cos(angle);
-  const dy = Math.sin(angle);
-  const nx = -dy;
-  const ny = dx;
-  const ax = x - dx * r;
-  const ay = y - dy * r;
-  const bx = x + dx * r;
-  const by = y + dy * r;
-  const pinch = r * 0.18;
-  ctx.strokeStyle = "#333333";
-  ctx.lineWidth = Math.max(1.5, r * 0.22);
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(ax, ay);
-  ctx.quadraticCurveTo(x + nx * pinch, y + ny * pinch, bx, by);
-  ctx.moveTo(ax, ay);
-  ctx.quadraticCurveTo(x - nx * pinch, y - ny * pinch, bx, by);
-  ctx.stroke();
-}
-
-function drawLifeEffect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  lives: number,
-): void {
-  if (lives <= 0) return;
-  ctx.strokeStyle = "rgba(80,255,120,0.75)";
-  ctx.lineWidth = Math.max(1.5, r * 0.18);
-  for (let i = 0; i < lives; i++) {
-    const ringR = r * (1.3 + i * 0.35);
-    ctx.beginPath();
-    ctx.arc(x, y, ringR, 0, Math.PI * 2);
-    ctx.stroke();
-  }
 }
 
 function createSettingsMenu(container: HTMLElement, onVolumeChange: () => void): HTMLElement {
@@ -936,9 +853,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     Composite.add(engine.world, ball);
   }
 
-  const respawnBeams: { x: number; start: number }[] = [];
-  const RESPAWN_BEAM_DURATION = 140;
-  const RESPAWN_TRAIL_LEN = 320;
+  const effectQueue = new EffectQueue();
 
   // Remove off-screen balls (life trait respawns once)
   Events.on(engine, "afterUpdate", () => {
@@ -950,7 +865,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         if (meta && meta.lives > 0 && min.y > height) {
           // Life trait: respawn at top with same value
           meta.lives--;
-          respawnBeams.push({ x: ball.position.x, start: performance.now() });
+          effectQueue.add(createRespawnStreak(ball.position.x, height));
           Body.setPosition(ball, { x: ball.position.x, y: 0 });
           Body.setVelocity(ball, { x: 0, y: 0 });
         } else {
@@ -962,58 +877,11 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     }
   });
 
-  // Trait effects overlay
+  // Overlay pass: trait effects then transient effects
   Events.on(render, "afterRender", () => {
     const ctx = render.context;
-    const now = performance.now();
-    for (let i = respawnBeams.length - 1; i >= 0; i--) {
-      const beam = respawnBeams[i];
-      const t = (now - beam.start) / RESPAWN_BEAM_DURATION;
-      if (t >= 1) {
-        respawnBeams.splice(i, 1);
-        continue;
-      }
-      // Head moves from bottom to above the top; trail follows behind.
-      const headY = height - (height + RESPAWN_TRAIL_LEN) * t;
-      const tailY = headY + RESPAWN_TRAIL_LEN;
-      const visTop = Math.max(headY, 0);
-      const visBot = Math.min(tailY, height);
-      if (visBot > visTop) {
-        const coreW = BALL_RADIUS * 1.2;
-        const glowW = BALL_RADIUS * 5;
-        const glowGrad = ctx.createLinearGradient(0, tailY, 0, headY);
-        glowGrad.addColorStop(0, "rgba(80,255,120,0)");
-        glowGrad.addColorStop(1, "rgba(80,255,120,0.45)");
-        ctx.fillStyle = glowGrad;
-        ctx.fillRect(beam.x - glowW / 2, visTop, glowW, visBot - visTop);
-        const coreGrad = ctx.createLinearGradient(0, tailY, 0, headY);
-        coreGrad.addColorStop(0, "rgba(160,255,180,0)");
-        coreGrad.addColorStop(1, "rgba(220,255,220,1)");
-        ctx.fillStyle = coreGrad;
-        ctx.fillRect(beam.x - coreW / 2, visTop, coreW, visBot - visTop);
-      }
-      // Bright leading head
-      if (headY >= 0 && headY <= height) {
-        const headR = BALL_RADIUS * 1.6;
-        const headGrad = ctx.createRadialGradient(beam.x, headY, 0, beam.x, headY, headR);
-        headGrad.addColorStop(0, "rgba(240,255,230,1)");
-        headGrad.addColorStop(1, "rgba(80,255,120,0)");
-        ctx.fillStyle = headGrad;
-        ctx.beginPath();
-        ctx.arc(beam.x, headY, headR, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    for (const [id, ball] of balls) {
-      const meta = ballMeta.get(id);
-      if (!meta || meta.traits.size === 0) continue;
-      const { x, y } = ball.position;
-      const r = ball.circleRadius ?? BALL_RADIUS;
-      if (meta.traits.has("premium")) drawPremiumEffect(ctx, x, y, r);
-      if (meta.traits.has("critical")) drawCriticalEffect(ctx, x, y, r, ball.angle);
-      if (meta.traits.has("life")) drawLifeEffect(ctx, x, y, r, meta.lives);
-      if (meta.traits.has("split")) drawSplitEffect(ctx, x, y, r, meta.splitAngle + ball.angle);
-    }
+    renderBallTraits(ctx, balls, ballMeta);
+    effectQueue.render(ctx);
   });
 
   // Collision -> sound
