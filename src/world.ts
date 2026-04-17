@@ -936,6 +936,10 @@ export function createWorld(canvas: HTMLCanvasElement): void {
     Composite.add(engine.world, ball);
   }
 
+  const respawnBeams: { x: number; start: number }[] = [];
+  const RESPAWN_BEAM_DURATION = 140;
+  const RESPAWN_TRAIL_LEN = 320;
+
   // Remove off-screen balls (life trait respawns once)
   Events.on(engine, "afterUpdate", () => {
     for (const [id, ball] of balls) {
@@ -946,6 +950,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         if (meta && meta.lives > 0 && min.y > height) {
           // Life trait: respawn at top with same value
           meta.lives--;
+          respawnBeams.push({ x: ball.position.x, start: performance.now() });
           Body.setPosition(ball, { x: ball.position.x, y: 0 });
           Body.setVelocity(ball, { x: 0, y: 0 });
         } else {
@@ -960,6 +965,45 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   // Trait effects overlay
   Events.on(render, "afterRender", () => {
     const ctx = render.context;
+    const now = performance.now();
+    for (let i = respawnBeams.length - 1; i >= 0; i--) {
+      const beam = respawnBeams[i];
+      const t = (now - beam.start) / RESPAWN_BEAM_DURATION;
+      if (t >= 1) {
+        respawnBeams.splice(i, 1);
+        continue;
+      }
+      // Head moves from bottom to above the top; trail follows behind.
+      const headY = height - (height + RESPAWN_TRAIL_LEN) * t;
+      const tailY = headY + RESPAWN_TRAIL_LEN;
+      const visTop = Math.max(headY, 0);
+      const visBot = Math.min(tailY, height);
+      if (visBot > visTop) {
+        const coreW = BALL_RADIUS * 1.2;
+        const glowW = BALL_RADIUS * 5;
+        const glowGrad = ctx.createLinearGradient(0, tailY, 0, headY);
+        glowGrad.addColorStop(0, "rgba(80,255,120,0)");
+        glowGrad.addColorStop(1, "rgba(80,255,120,0.45)");
+        ctx.fillStyle = glowGrad;
+        ctx.fillRect(beam.x - glowW / 2, visTop, glowW, visBot - visTop);
+        const coreGrad = ctx.createLinearGradient(0, tailY, 0, headY);
+        coreGrad.addColorStop(0, "rgba(160,255,180,0)");
+        coreGrad.addColorStop(1, "rgba(220,255,220,1)");
+        ctx.fillStyle = coreGrad;
+        ctx.fillRect(beam.x - coreW / 2, visTop, coreW, visBot - visTop);
+      }
+      // Bright leading head
+      if (headY >= 0 && headY <= height) {
+        const headR = BALL_RADIUS * 1.6;
+        const headGrad = ctx.createRadialGradient(beam.x, headY, 0, beam.x, headY, headR);
+        headGrad.addColorStop(0, "rgba(240,255,230,1)");
+        headGrad.addColorStop(1, "rgba(80,255,120,0)");
+        ctx.fillStyle = headGrad;
+        ctx.beginPath();
+        ctx.arc(beam.x, headY, headR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
     for (const [id, ball] of balls) {
       const meta = ballMeta.get(id);
       if (!meta || meta.traits.size === 0) continue;
