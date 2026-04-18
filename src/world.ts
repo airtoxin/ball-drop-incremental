@@ -53,6 +53,10 @@ const GAME_HEIGHT = 1080;
 const GRID_SIZE = 100;
 const WALL_COLOR = "#4a4a6a";
 const FLASH_COLOR = "#ffffff";
+const BUMPER_COLOR = "#7a7aff";
+// Bumpers are tall vertical slabs; a full-white flash on them is uncomfortably
+// bright. Use a lighter-tinted blue instead.
+const BUMPER_FLASH_COLOR = "#b0b0ff";
 const FLASH_DURATION = 150;
 
 function createObstacles(
@@ -258,7 +262,7 @@ function createBumpers(width: number, height: number, expandCols: number): Matte
   const bumperOpts: Matter.IChamferableBodyDefinition = {
     isStatic: true,
     restitution: 1,
-    render: { fillStyle: "#7a7aff" },
+    render: { fillStyle: BUMPER_COLOR },
     label: "bumper",
   };
   // Place bumpers two grid columns outside the current pin grid so balls
@@ -1030,10 +1034,12 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         const velocity = ball.speed > 10 ? 1 : ball.speed / 10;
         play(duration, velocity);
 
-        // Flash the obstacle
-        wall.render.fillStyle = FLASH_COLOR;
+        // Flash the obstacle. Bumpers use their own muted flash since they're
+        // big and a full white blast is jarring.
+        const isBumper = wall.label === "bumper";
+        wall.render.fillStyle = isBumper ? BUMPER_FLASH_COLOR : FLASH_COLOR;
         setTimeout(() => {
-          wall.render.fillStyle = WALL_COLOR;
+          wall.render.fillStyle = isBumper ? BUMPER_COLOR : WALL_COLOR;
         }, FLASH_DURATION);
 
         // Rotate triangle obstacles on hit
