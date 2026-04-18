@@ -54,7 +54,6 @@ export type UpgradeId =
   | "expandCols"
   | "bumpers"
   | "zigzag"
-  | "traitsUnlock"
   | "trait:big"
   | "trait:premium"
   | "trait:critical"
@@ -132,12 +131,39 @@ export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   },
   bumpers: { baseCost: 100_000, costGrowth: 1, maxLevel: 1 },
   zigzag: { baseCost: 2_000_000, costGrowth: 1, maxLevel: 1 },
-  traitsUnlock: { baseCost: 100_000_000, costGrowth: 1, maxLevel: 1 },
-  "trait:big": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:premium": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:critical": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:life": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
-  "trait:split": { baseCost: 2_000_000, costGrowth: 1.9, maxLevel: TRAIT_MAX_LEVEL },
+  // Traits are ordered weakest→strongest so reveal staggers through the game.
+  // Gain rankings come from expectedScorePerBall analysis across early/mid/late
+  // states: split +9%, life +55%, critical +69%, big +78%, premium +110%.
+  "trait:split": {
+    baseCost: 50_000,
+    costGrowth: 1.6,
+    maxLevel: TRAIT_MAX_LEVEL,
+    revealAt: 0,
+  },
+  "trait:life": {
+    baseCost: 200_000,
+    costGrowth: 1.7,
+    maxLevel: TRAIT_MAX_LEVEL,
+    revealAt: 20_000,
+  },
+  "trait:critical": {
+    baseCost: 500_000,
+    costGrowth: 1.8,
+    maxLevel: TRAIT_MAX_LEVEL,
+    revealAt: 80_000,
+  },
+  "trait:big": {
+    baseCost: 1_500_000,
+    costGrowth: 1.9,
+    maxLevel: TRAIT_MAX_LEVEL,
+    revealAt: 400_000,
+  },
+  "trait:premium": {
+    baseCost: 3_000_000,
+    costGrowth: 1.9,
+    maxLevel: TRAIT_MAX_LEVEL,
+    revealAt: 2_000_000,
+  },
 };
 
 export const ALL_UPGRADE_IDS: UpgradeId[] = Object.keys(UPGRADE_DEFS) as UpgradeId[];
@@ -192,8 +218,6 @@ export function getLevel(state: Readonly<SaveData>, id: UpgradeId): number {
       return state.hasBumpers ? 1 : 0;
     case "zigzag":
       return state.hasZigzag ? 1 : 0;
-    case "traitsUnlock":
-      return state.hasSpecialBalls ? 1 : 0;
     case "trait:big":
       return state.specialBalls.big;
     case "trait:premium":
@@ -260,9 +284,6 @@ export function applyPurchase(state: SaveData, id: UpgradeId): void {
       return;
     case "zigzag":
       state.hasZigzag = true;
-      return;
-    case "traitsUnlock":
-      state.hasSpecialBalls = true;
       return;
     case "trait:big":
       state.specialBalls.big += 1;

@@ -19,7 +19,6 @@ export interface SaveData {
   expandCols: number;
   hasBumpers: boolean;
   hasZigzag: boolean;
-  hasSpecialBalls: boolean;
   specialBalls: {
     big: number;
     premium: number;
@@ -57,7 +56,6 @@ export const defaults: SaveData = {
   expandCols: 0,
   hasBumpers: false,
   hasZigzag: false,
-  hasSpecialBalls: false,
   specialBalls: {
     big: 0,
     premium: 0,

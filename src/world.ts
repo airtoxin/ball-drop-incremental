@@ -109,7 +109,6 @@ function createObstacles(
 
 function rollTraits(): Set<BallTrait> {
   const s = getState();
-  if (!s.hasSpecialBalls) return new Set();
   const traits = new Set<BallTrait>();
   for (const trait of ALL_TRAITS) {
     const chance = s.specialBalls[trait] * TRAIT_CHANCE_PER_LEVEL;
@@ -609,33 +608,6 @@ function createShopMenu(
   panel.appendChild(zigzagRow);
   registerRow(zigzagRow, () => isRevealed(getState(), "zigzag"));
 
-  // Traits unlock (one-time)
-  const traitsUnlockRow = document.createElement("div");
-  traitsUnlockRow.className = "shop-item";
-
-  const traitsUnlockLabel = document.createElement("span");
-
-  const traitsUnlockBtn = document.createElement("button");
-  traitsUnlockBtn.className = "shop-buy-btn";
-  traitsUnlockBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const s = getState();
-    const cost = costOf("traitsUnlock", getLevel(s, "traitsUnlock"));
-    if (s.collisionCount >= cost && !s.hasSpecialBalls) {
-      updateState({
-        collisionCount: s.collisionCount - cost,
-        hasSpecialBalls: true,
-      });
-      counterEl.textContent = String(getState().collisionCount);
-      playPurchase();
-    }
-  });
-
-  traitsUnlockRow.appendChild(traitsUnlockLabel);
-  traitsUnlockRow.appendChild(traitsUnlockBtn);
-  panel.appendChild(traitsUnlockRow);
-  registerRow(traitsUnlockRow, () => isRevealed(getState(), "traitsUnlock"));
-
   // Individual trait items
   type TraitKey = "big" | "premium" | "critical" | "life" | "split";
   const traitDefs: {
@@ -643,11 +615,12 @@ function createShopMenu(
     labelKey: "traitBig" | "traitPremium" | "traitCritical" | "traitLife" | "traitSplit";
     upgradeId: "trait:big" | "trait:premium" | "trait:critical" | "trait:life" | "trait:split";
   }[] = [
+    // Ordered weakest→strongest so the shop reveals them in ascending power.
+    { key: "split", labelKey: "traitSplit", upgradeId: "trait:split" },
+    { key: "life", labelKey: "traitLife", upgradeId: "trait:life" },
+    { key: "critical", labelKey: "traitCritical", upgradeId: "trait:critical" },
     { key: "big", labelKey: "traitBig", upgradeId: "trait:big" },
     { key: "premium", labelKey: "traitPremium", upgradeId: "trait:premium" },
-    { key: "critical", labelKey: "traitCritical", upgradeId: "trait:critical" },
-    { key: "life", labelKey: "traitLife", upgradeId: "trait:life" },
-    { key: "split", labelKey: "traitSplit", upgradeId: "trait:split" },
   ];
 
   const traitLabels: HTMLElement[] = [];
@@ -667,7 +640,7 @@ function createShopMenu(
       e.stopPropagation();
       const s = getState();
       const cost = costOf(def.upgradeId, getLevel(s, def.upgradeId));
-      if (s.hasSpecialBalls && s.collisionCount >= cost) {
+      if (s.collisionCount >= cost) {
         updateState({ collisionCount: s.collisionCount - cost });
         updateSpecialBalls({ [def.key]: s.specialBalls[def.key] + 1 });
         counterEl.textContent = String(getState().collisionCount);
@@ -678,7 +651,7 @@ function createShopMenu(
     row.appendChild(label);
     row.appendChild(btn);
     panel.appendChild(row);
-    registerRow(row, () => getState().hasSpecialBalls);
+    registerRow(row, () => isRevealed(getState(), def.upgradeId));
   }
 
   // Update labels on state change
@@ -795,32 +768,21 @@ function createShopMenu(
       setAffordance(zigzagBtn, c);
     }
     // Traits
-    if (s.hasSpecialBalls) {
-      traitsUnlockLabel.textContent = `${t("traits")}: ${t("on")}`;
-      traitsUnlockBtn.textContent = t("purchased");
-      traitsUnlockBtn.disabled = true;
-      setAffordance(traitsUnlockBtn, 0);
-      for (let i = 0; i < traitDefs.length; i++) {
-        const def = traitDefs[i];
-        const count = s.specialBalls[def.key];
-        const pct = Math.min(Math.round(count * TRAIT_CHANCE_PER_LEVEL * 100), 100);
-        traitLabels[i].textContent = `${t(def.labelKey)}: ${pct}%`;
-        if (pct >= 100) {
-          traitBtns[i].textContent = t("max");
-          traitBtns[i].disabled = true;
-          setAffordance(traitBtns[i], 0);
-        } else {
-          const c = costOf(def.upgradeId, getLevel(s, def.upgradeId));
-          traitBtns[i].textContent = `+10% (${c})`;
-          traitBtns[i].disabled = false;
-          setAffordance(traitBtns[i], c);
-        }
+    for (let i = 0; i < traitDefs.length; i++) {
+      const def = traitDefs[i];
+      const count = s.specialBalls[def.key];
+      const pct = Math.min(Math.round(count * TRAIT_CHANCE_PER_LEVEL * 100), 100);
+      traitLabels[i].textContent = `${t(def.labelKey)}: ${pct}%`;
+      if (pct >= 100) {
+        traitBtns[i].textContent = t("max");
+        traitBtns[i].disabled = true;
+        setAffordance(traitBtns[i], 0);
+      } else {
+        const c = costOf(def.upgradeId, getLevel(s, def.upgradeId));
+        traitBtns[i].textContent = `+10% (${c})`;
+        traitBtns[i].disabled = false;
+        setAffordance(traitBtns[i], c);
       }
-    } else {
-      traitsUnlockLabel.textContent = `${t("traits")}: ${t("off")}`;
-      const c = costOf("traitsUnlock", getLevel(s, "traitsUnlock"));
-      traitsUnlockBtn.textContent = `${t("unlock")} (${c})`;
-      setAffordance(traitsUnlockBtn, c);
     }
     // Apply visibility conditions
     for (const item of conditionalRows) {
@@ -1119,7 +1081,6 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       expandCols: 0,
       hasBumpers: false,
       hasZigzag: false,
-      hasSpecialBalls: false,
       specialBalls: { big: 0, premium: 0, critical: 0, life: 0, split: 0 },
       upgrades: {
         maxBalls: 19,
@@ -1137,11 +1098,9 @@ export function createWorld(canvas: HTMLCanvasElement): void {
       bumpers: { hasBumpers: true },
       zigzag: { hasZigzag: true },
       life: {
-        hasSpecialBalls: true,
         specialBalls: { big: 0, premium: 0, critical: 0, life: 10, split: 0 },
       },
       big: {
-        hasSpecialBalls: true,
         specialBalls: { big: 10, premium: 0, critical: 0, life: 0, split: 0 },
       },
       full: {
@@ -1150,7 +1109,6 @@ export function createWorld(canvas: HTMLCanvasElement): void {
         expandCols: 6,
         hasBumpers: true,
         hasZigzag: true,
-        hasSpecialBalls: true,
         specialBalls: { big: 10, premium: 0, critical: 0, life: 10, split: 0 },
         upgrades: { ...base.upgrades, restitution: 10 },
       },
