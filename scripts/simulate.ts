@@ -400,7 +400,6 @@ function stateSummary(state: Readonly<SaveData>): string {
     `cols=${state.expandCols}`,
     `bump=${state.hasBumpers ? 1 : 0}`,
     `zig=${state.hasZigzag ? 1 : 0}`,
-    `traits=${state.hasSpecialBalls ? 1 : 0}`,
     `[big=${sb.big} prem=${sb.premium} crit=${sb.critical} life=${sb.life} split=${sb.split}]`,
   ].join(" ");
 }
