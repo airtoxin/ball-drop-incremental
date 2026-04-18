@@ -59,6 +59,15 @@ const BUMPER_COLOR = "#7a7aff";
 const BUMPER_FLASH_COLOR = "#b0b0ff";
 const FLASH_DURATION = 150;
 
+function formatNumber(n: number): string {
+  const abs = Math.abs(n);
+  if (abs < 1000) return String(Math.floor(n));
+  if (abs < 1_000_000) return (n / 1_000).toFixed(2) + "k";
+  if (abs < 1_000_000_000) return (n / 1_000_000).toFixed(2) + "M";
+  if (abs < 1_000_000_000_000) return (n / 1_000_000_000).toFixed(2) + "B";
+  return (n / 1_000_000_000_000).toFixed(2) + "T";
+}
+
 function createObstacles(
   width: number,
   height: number,
@@ -324,7 +333,7 @@ function createShopMenu(
     if (s.collisionCount >= cost) {
       updateState({ collisionCount: s.collisionCount - cost, maxBalls: s.maxBalls + 1 });
       updateUpgrades({ maxBalls: s.upgrades.maxBalls + 1 });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       playPurchase();
     }
   });
@@ -352,7 +361,7 @@ function createShopMenu(
         ballRestitution: Math.round((s.ballRestitution + 0.05) * 100) / 100,
       });
       updateUpgrades({ restitution: s.upgrades.restitution + 1 });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       playPurchase();
     }
   });
@@ -390,7 +399,7 @@ function createShopMenu(
         autoDropInterval: newInterval,
       });
       updateUpgrades({ autoDrop: newLevel });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       startAutoDrop(newInterval);
       playPurchase();
     }
@@ -426,7 +435,7 @@ function createShopMenu(
         bounceMultiplier: newMult,
       });
       updateUpgrades({ bounceMultiplier: s.upgrades.bounceMultiplier + 1 });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       playPurchase();
     }
   });
@@ -458,7 +467,7 @@ function createShopMenu(
         criticalChance: newChance,
       });
       updateUpgrades({ critical: s.upgrades.critical + 1 });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       playPurchase();
     }
   });
@@ -486,7 +495,7 @@ function createShopMenu(
         multiDrop: s.multiDrop + 1,
       });
       updateUpgrades({ multiDrop: s.upgrades.multiDrop + 1 });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       playPurchase();
     }
   });
@@ -513,7 +522,7 @@ function createShopMenu(
         collisionCount: s.collisionCount - cost,
         expandRows: s.expandRows + 1,
       });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       onRebuildObstacles();
       playPurchase();
     }
@@ -541,7 +550,7 @@ function createShopMenu(
         collisionCount: s.collisionCount - cost,
         expandCols: s.expandCols + 1,
       });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       onRebuildObstacles();
       playPurchase();
     }
@@ -569,7 +578,7 @@ function createShopMenu(
         collisionCount: s.collisionCount - cost,
         hasBumpers: true,
       });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       onAddBumpers();
       playPurchase();
     }
@@ -597,7 +606,7 @@ function createShopMenu(
         collisionCount: s.collisionCount - cost,
         hasZigzag: true,
       });
-      counterEl.textContent = String(getState().collisionCount);
+      counterEl.textContent = formatNumber(getState().collisionCount);
       onZigzag();
       playPurchase();
     }
@@ -643,7 +652,7 @@ function createShopMenu(
       if (s.collisionCount >= cost) {
         updateState({ collisionCount: s.collisionCount - cost });
         updateSpecialBalls({ [def.key]: s.specialBalls[def.key] + 1 });
-        counterEl.textContent = String(getState().collisionCount);
+        counterEl.textContent = formatNumber(getState().collisionCount);
         playPurchase();
       }
     });
@@ -670,11 +679,11 @@ function createShopMenu(
     };
     maxBallsLabel.textContent = `${t("maxBalls")}: ${s.maxBalls}`;
     const maxBallsCost = costOf("maxBalls", getLevel(s, "maxBalls"));
-    maxBallsBtn.textContent = `+1 (${maxBallsCost})`;
+    maxBallsBtn.textContent = `+1 (${formatNumber(maxBallsCost)})`;
     setAffordance(maxBallsBtn, maxBallsCost);
     restitutionLabel.textContent = `${t("restitution")}: ${s.ballRestitution.toFixed(2)}`;
     const restitutionCost = costOf("restitution", getLevel(s, "restitution"));
-    restitutionBtn.textContent = `+0.05 (${restitutionCost})`;
+    restitutionBtn.textContent = `+0.05 (${formatNumber(restitutionCost)})`;
     setAffordance(restitutionBtn, restitutionCost);
     if (s.autoDropInterval > 0) {
       autoDropLabel.textContent = `${t("autoDrop")}: ${(s.autoDropInterval / 1000).toFixed(1)}s`;
@@ -684,14 +693,14 @@ function createShopMenu(
         setAffordance(autoDropBtn, 0);
       } else {
         const c = costOf("autoDrop", getLevel(s, "autoDrop"));
-        autoDropBtn.textContent = `-1s (${c})`;
+        autoDropBtn.textContent = `-1s (${formatNumber(c)})`;
         autoDropBtn.disabled = false;
         setAffordance(autoDropBtn, c);
       }
     } else {
       autoDropLabel.textContent = `${t("autoDrop")}: ${t("off")}`;
       const c = costOf("autoDrop", getLevel(s, "autoDrop"));
-      autoDropBtn.textContent = `${t("on")} (${c})`;
+      autoDropBtn.textContent = `${t("on")} (${formatNumber(c)})`;
       autoDropBtn.disabled = false;
       setAffordance(autoDropBtn, c);
     }
@@ -702,7 +711,7 @@ function createShopMenu(
       setAffordance(multiplierBtn, 0);
     } else {
       const c = costOf("bounceMultiplier", getLevel(s, "bounceMultiplier"));
-      multiplierBtn.textContent = `+0.05 (${c})`;
+      multiplierBtn.textContent = `+0.05 (${formatNumber(c)})`;
       multiplierBtn.disabled = false;
       setAffordance(multiplierBtn, c);
     }
@@ -713,13 +722,13 @@ function createShopMenu(
       setAffordance(criticalBtn, 0);
     } else {
       const c = costOf("critical", getLevel(s, "critical"));
-      criticalBtn.textContent = `+5% (${c})`;
+      criticalBtn.textContent = `+5% (${formatNumber(c)})`;
       criticalBtn.disabled = false;
       setAffordance(criticalBtn, c);
     }
     multiDropLabel.textContent = `${t("multiDrop")}: ${s.multiDrop}`;
     const multiDropCost = costOf("multiDrop", getLevel(s, "multiDrop"));
-    multiDropBtn.textContent = `+1 (${multiDropCost})`;
+    multiDropBtn.textContent = `+1 (${formatNumber(multiDropCost)})`;
     setAffordance(multiDropBtn, multiDropCost);
     const totalRows = 3 + s.expandRows * 2;
     expandRowsLabel.textContent = `${t("expandRows")}: ${totalRows}`;
@@ -729,7 +738,7 @@ function createShopMenu(
       setAffordance(expandRowsBtn, 0);
     } else {
       const c = costOf("expandRows", getLevel(s, "expandRows"));
-      expandRowsBtn.textContent = `+2 (${c})`;
+      expandRowsBtn.textContent = `+2 (${formatNumber(c)})`;
       expandRowsBtn.disabled = false;
       setAffordance(expandRowsBtn, c);
     }
@@ -741,7 +750,7 @@ function createShopMenu(
       setAffordance(expandColsBtn, 0);
     } else {
       const c = costOf("expandCols", getLevel(s, "expandCols"));
-      expandColsBtn.textContent = `+2 (${c})`;
+      expandColsBtn.textContent = `+2 (${formatNumber(c)})`;
       expandColsBtn.disabled = false;
       setAffordance(expandColsBtn, c);
     }
@@ -753,7 +762,7 @@ function createShopMenu(
     } else {
       bumperLabel.textContent = `${t("bumpers")}: ${t("off")}`;
       const c = costOf("bumpers", getLevel(s, "bumpers"));
-      bumperBtn.textContent = `${t("buy")} (${c})`;
+      bumperBtn.textContent = `${t("buy")} (${formatNumber(c)})`;
       setAffordance(bumperBtn, c);
     }
     if (s.hasZigzag) {
@@ -764,7 +773,7 @@ function createShopMenu(
     } else {
       zigzagLabel.textContent = `${t("zigzag")}: ${t("off")}`;
       const c = costOf("zigzag", getLevel(s, "zigzag"));
-      zigzagBtn.textContent = `${t("buy")} (${c})`;
+      zigzagBtn.textContent = `${t("buy")} (${formatNumber(c)})`;
       setAffordance(zigzagBtn, c);
     }
     // Traits
@@ -779,7 +788,7 @@ function createShopMenu(
         setAffordance(traitBtns[i], 0);
       } else {
         const c = costOf(def.upgradeId, getLevel(s, def.upgradeId));
-        traitBtns[i].textContent = `+10% (${c})`;
+        traitBtns[i].textContent = `+10% (${formatNumber(c)})`;
         traitBtns[i].disabled = false;
         setAffordance(traitBtns[i], c);
       }
@@ -813,7 +822,7 @@ function showFloatText(
 ): void {
   const el = document.createElement("div");
   el.className = critical ? "float-text float-text-critical" : "float-text";
-  el.textContent = critical ? `+${amount}!` : `+${amount}`;
+  el.textContent = critical ? `+${formatNumber(amount)}!` : `+${formatNumber(amount)}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   container.appendChild(el);
@@ -848,7 +857,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
   // Counter display
   const counterEl = document.createElement("div");
   counterEl.id = "counter";
-  counterEl.textContent = String(getState().collisionCount);
+  counterEl.textContent = formatNumber(getState().collisionCount);
   container.appendChild(counterEl);
 
   const engine = Engine.create({
@@ -1032,7 +1041,7 @@ export function createWorld(canvas: HTMLCanvasElement): void {
           const r = ball.circleRadius ?? BALL_RADIUS;
           effectQueue.add(createSplitBurst(ball.position.x, ball.position.y, r));
         }
-        counterEl.textContent = String(getState().collisionCount);
+        counterEl.textContent = formatNumber(getState().collisionCount);
       }
     }
   });
